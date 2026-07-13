@@ -31,6 +31,8 @@ export class ModuleLoader {
     for (const dir of dirs) {
       await this.loadModule(dir);
     }
+
+    this.startAutoScanner();
   }
 
   async loadModule(name: string): Promise<boolean> {
@@ -185,6 +187,52 @@ export class ModuleLoader {
         logger.error(`Failed to load event: ${file}`, { error });
       }
     }
+  }
+
+  private scannerInterval: NodeJS.Timeout | null = null;
+
+  startAutoScanner(): void {
+    if (this.scannerInterval) return;
+    
+    logger.info('👁️ Starting modules directory auto-scanner (polling)...');
+    
+    this.scannerInterval = setInterval(async () => {
+      try {
+        if (!fs.existsSync(this.modulesDir)) return;
+        const dirs = fs.readdirSync(this.modulesDir, { withFileTypes: true })
+          .filter(d => d.isDirectory())
+          .map(d => d.name);
+
+        let newModuleLoaded = false;
+
+        for (const dir of dirs) {
+          const modulePath = path.join(this.modulesDir, dir, 'module.ts');
+          const moduleJsPath = path.join(this.modulesDir, dir, 'module.js');
+          const hasModuleFile = fs.existsSync(modulePath) || fs.existsSync(moduleJsPath);
+
+          if (hasModuleFile) {
+            const isLoaded = this.kernel.client.modules.has(dir) || 
+                             Array.from(this.kernel.client.modules.values()).some(m => m.manifest.name === dir);
+
+            if (!isLoaded) {
+              logger.info(`🆕 Auto-scanner detected new module: "${dir}". Loading...`, { module: 'system' });
+              const success = await this.loadModule(dir);
+              if (success) {
+                logger.info(`🚀 Auto-scanner successfully loaded new module: "${dir}"`, { module: 'system' });
+                newModuleLoaded = true;
+              }
+            }
+          }
+        }
+
+        if (newModuleLoaded && process.env.CLIENT_ID) {
+          logger.info('🔄 Redeploying slash commands after loading new modules...', { module: 'system' });
+          await this.kernel.client.deployCommands();
+        }
+      } catch (err) {
+        logger.error('Error in module auto-scanner:', { error: err });
+      }
+    }, 5000);
   }
 
   private getFiles(dir: string, exts: string[]): string[] {
