@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bảng Điều Khiển — Kini Bot 2.0</title>
+  <link rel="stylesheet" href="/style.css">
+  <!-- Google Fonts & Socket.io -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="dashboard-body">
+  <div class="glow-bg"></div>
+
+  <div class="dashboard-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar glass">
+      <div class="brand">
+        <span class="logo-emoji">🤖</span>
+        <h2>Kini Bot 2.0</h2>
+      </div>
+
+      <div class="user-profile" id="user-profile">
+        <img id="user-avatar" src="" alt="Avatar" class="avatar">
+        <div class="user-info">
+          <h4 id="user-name">Đang tải...</h4>
+          <span class="status-indicator online">🟢 Online</span>
+        </div>
+      </div>
+
+      <div class="selector-box">
+        <label for="server-select">🎮 Chọn Server:</label>
+        <select id="server-select" class="glass-select">
+          <option value="" disabled selected>Đang tải danh sách...</option>
+        </select>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="config">⚙️ Cấu Hình Modules</button>
+        <button class="nav-item" data-tab="prefix">🔑 Prefix Lệnh</button>
+        <button class="nav-item" data-tab="logs">📜 System Logs (Live)</button>
+        <button class="nav-item" id="btn-maintenance">🔧 Chế Độ Bảo Trì</button>
+        <a href="/auth/logout" class="nav-item logout">🚪 Đăng Xuất</a>
+      </nav>
+
+      <div class="system-mini-stats">
+        <p>📡 Bot Ping: <span id="ping-val">--</span>ms</p>
+        <p>📦 Modules: <span id="modules-val">--</span></p>
+        <p>⚡ Lệnh: <span id="commands-val">--</span></p>
+      </div>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="content-panel">
+      <!-- Section: Server Config -->
+      <section id="tab-config" class="tab-content active">
+        <div class="panel-header">
+          <h2>⚙️ Quản Lý Server & Modules</h2>
+          <p id="current-server-title">Vui lòng chọn một máy chủ ở thanh điều hướng bên trái.</p>
+        </div>
+
+        <div class="config-grid">
+          <!-- Left: Module Toggle List -->
+          <div class="modules-column glass">
+            <h3>Danh Sách Modules</h3>
+            <div id="modules-list" class="modules-list">
+              <p class="placeholder-text">Chưa chọn máy chủ để hiển thị modules.</p>
+            </div>
+          </div>
+
+          <!-- Right: Module Config Editor -->
+          <div class="editor-column glass">
+            <h3>Cấu Hình Chi Tiết Module: <span id="editing-module-name" class="highlight-text">Chưa chọn</span></h3>
+            <div class="editor-box">
+              <textarea id="config-textarea" class="code-editor" disabled placeholder='Chọn một module ở danh sách bên trái để chỉnh sửa cấu hình JSON...'></textarea>
+              <div class="editor-actions">
+                <span id="config-status-msg" class="status-msg"></span>
+                <button id="btn-save-config" class="btn btn-primary" disabled>💾 Lưu Cấu Hình</button>
+              </div>
+
+              <!-- Image Upload CDN Helper -->
+              <div class="upload-cdn-helper" id="upload-cdn-helper">
+                <div class="upload-cdn-header">
+                  <span>📷 Tải ảnh lấy Link Discord CDN (Miễn Phí)</span>
+                </div>
+                <div class="upload-cdn-row">
+                  <input type="file" id="upload-image-file" accept="image/*" class="upload-file-input" style="display:none;" />
+                  <button id="btn-trigger-upload" class="btn btn-secondary upload-btn">📁 Chọn & Tải Ảnh</button>
+                  <div class="upload-url-wrap">
+                    <input type="text" id="uploaded-image-url" class="prefix-input upload-url-input" readonly placeholder="Link ảnh sau khi tải..." />
+                    <button id="btn-copy-uploaded-url" class="btn btn-primary copy-btn" disabled>📋 Copy</button>
+                  </div>
+                </div>
+                <span id="upload-status-msg" class="status-msg"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Prefix Settings -->
+      <section id="tab-prefix" class="tab-content">
+        <div class="panel-header">
+          <h2>🔑 Text Prefix & Alias Lệnh</h2>
+          <p>Đặt prefix văn bản cho bot và tạo alias riêng — ví dụ: gõ <code>!shoplist</code> sẽ thực thi <code>/shop list</code>.</p>
+        </div>
+
+        <div class="prefix-layout">
+          <!-- Global prefix card -->
+          <div class="prefix-card glass">
+            <div class="prefix-card-header">
+              <span class="prefix-card-icon">🌐</span>
+              <div>
+                <h3>Prefix Tổng</h3>
+                <p class="prefix-card-sub">Ký tự tiền tố nhận diện tin nhắn lệnh (mặc định: <code>!</code>)</p>
+              </div>
+            </div>
+            <div class="prefix-global-row">
+              <div class="prefix-input-wrap">
+                <span class="prefix-badge" id="global-prefix-badge">!</span>
+                <input id="global-prefix-input" class="prefix-input" type="text" maxlength="8" placeholder="Nhập prefix..." />
+              </div>
+              <button id="btn-save-global-prefix" class="btn btn-primary" disabled>💾 Lưu Prefix</button>
+            </div>
+            <p class="prefix-hint">💡 Prefix hiện tại: <code id="current-global-prefix">Chưa chọn server</code></p>
+          </div>
+
+          <!-- Alias manager card -->
+          <div class="prefix-card glass">
+            <div class="prefix-card-header">
+              <span class="prefix-card-icon">⚡</span>
+              <div>
+                <h3>Quản Lý Alias Lệnh</h3>
+                <p class="prefix-card-sub">Tạo tên tắt cho lệnh — người dùng gõ <code>!{alias}</code> thay cho <code>/lệnh subcommand</code></p>
+              </div>
+            </div>
+
+            <!-- Add alias form -->
+            <div class="alias-add-form" id="alias-add-form">
+              <div class="alias-form-row">
+                <div class="alias-form-col">
+                  <label class="alias-label">Alias (tên tắt)</label>
+                  <div class="prefix-input-wrap">
+                    <span class="prefix-badge" id="alias-prefix-preview">!</span>
+                    <input id="new-alias-text" class="prefix-input" type="text" placeholder="shoplist, daily, balance..." maxlength="32" />
+                  </div>
+                </div>
+                <span class="alias-arrow">→</span>
+                <div class="alias-form-col">
+                  <label class="alias-label">Lệnh slash</label>
+                  <select id="new-alias-command" class="glass-select alias-select">
+                    <option value="">-- Chọn lệnh --</option>
+                  </select>
+                </div>
+                <div class="alias-form-col">
+                  <label class="alias-label">Subcommand <span class="alias-optional">(tuỳ chọn)</span></label>
+                  <select id="new-alias-subcommand" class="glass-select alias-select" disabled>
+                    <option value="">-- Không có --</option>
+                  </select>
+                </div>
+                <button id="btn-add-alias" class="btn btn-primary alias-add-btn" disabled>➕ Thêm</button>
+              </div>
+              <span id="alias-form-status" class="status-msg"></span>
+            </div>
+
+            <!-- Alias table -->
+            <div class="alias-table-header">
+              <span>Alias</span>
+              <span>→</span>
+              <span>Lệnh</span>
+              <span>Subcommand</span>
+              <span>Ví dụ</span>
+              <span></span>
+            </div>
+            <div id="alias-list" class="alias-list">
+              <p class="placeholder-text">Chưa có alias nào. Chọn một server và thêm alias ở trên.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- Section: Logs Terminal -->
+      <section id="tab-logs" class="tab-content">
+        <div class="panel-header">
+          <h2>📜 Hệ Thống Theo Dõi Log Thời Gian Thực</h2>
+          <p>Dòng logs của bot từ console được phát trực tiếp tới trình duyệt của bạn qua WebSockets.</p>
+        </div>
+
+        <div class="terminal-container glass">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+            </div>
+            <span class="terminal-title">kini-bot-console.log</span>
+            <button id="btn-clear-logs" class="terminal-clear-btn">🗑️ Xóa Màn Hình</button>
+          </div>
+          <div id="terminal-output" class="terminal-output">
+            <span class="term-system">[Dashboard] Kết nối WebSocket log stream thành công...</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

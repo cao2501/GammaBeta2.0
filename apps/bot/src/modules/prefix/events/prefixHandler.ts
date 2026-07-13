@@ -1,0 +1,64 @@
+import { Interaction, Message } from 'discord.js';
+import { IEvent } from '../../../core/interfaces/IEvent';
+import { Kernel } from '../../../core/Kernel';
+import { getModuleConfig } from '../../../database/helpers';
+import { MessageInteractionAdapter } from '../adapters/MessageInteractionAdapter';
+import { createModuleLogger } from '../../../core/logger/Logger';
+
+const log = createModuleLogger('prefix');
+
+interface AliasMapping {
+  command: string;
+  subcommand?: string;
+}
+
+export default class PrefixHandlerEvent implements IEvent<'messageCreate'> {
+  name = 'messageCreate' as const;
+
+  async execute(kernel: Kernel, message: Message): Promise<void> {
+    // Ignore bots & DMs
+    if (message.author.bot || !message.guildId || !message.content) return;
+
+    const guildId = message.guildId;
+
+    try {
+      const { config } = await getModuleConfig<any>(guildId, 'prefix');
+      const globalPrefix: string = config?.globalPrefix ?? '!';
+      const aliases: Record<string, AliasMapping> = config?.aliases ?? {};
+
+      if (!message.content.startsWith(globalPrefix)) return;
+
+      // Parse: prefix + alias + args
+      const withoutPrefix = message.content.slice(globalPrefix.length).trim();
+      if (!withoutPrefix) return;
+
+      const tokens = withoutPrefix.split(/\s+/);
+      const aliasKey = tokens[0].toLowerCase();
+      const args = tokens.slice(1);
+
+      const mapping = aliases[aliasKey];
+      if (!mapping) return; // Unknown alias — silently ignore
+
+      const command = kernel.client.commands.get(mapping.command);
+      if (!command) {
+        await message.reply(`❌ Lệnh \`/${mapping.command}\` không tồn tại hoặc chưa được tải.`);
+        return;
+      }
+
+      log.info(`Text prefix command: ${globalPrefix}${aliasKey} → /${mapping.command}${mapping.subcommand ? ' ' + mapping.subcommand : ''} [${message.author.tag}]`);
+
+      const adapter = new MessageInteractionAdapter(
+        message,
+        mapping.subcommand ?? null,
+        args,
+      );
+
+      // Execute the slash command handler with the adapter
+      await (command as any).execute(adapter as any, kernel);
+
+    } catch (err: any) {
+      log.error(`Prefix handler error: ${err.message}`);
+      await message.reply(`❌ Lỗi xử lý lệnh: ${err.message}`).catch(() => {});
+    }
+  }
+}

@@ -1,0 +1,268 @@
+import {
+  joinVoiceChannel,
+  createAudioPlayer,
+  createAudioResource,
+  AudioPlayerStatus,
+  VoiceConnectionStatus,
+  AudioPlayer,
+  VoiceConnection,
+} from '@discordjs/voice';
+import play from 'play-dl';
+import { TextBasedChannel } from 'discord.js';
+import { logger } from '../../../core/logger/Logger';
+
+export interface Track {
+  title: string;
+  url: string;
+  duration: string;
+  requester: string;
+  thumbnail?: string;
+}
+
+export interface GuildQueue {
+  guildId: string;
+  voiceChannelId: string;
+  textChannel: TextBasedChannel;
+  connection: VoiceConnection | null;
+  player: AudioPlayer | null;
+  tracks: Track[];
+  playing: boolean;
+  loop: boolean;
+  shuffle: boolean;
+  volume: number;
+  paused: boolean;
+}
+
+class MusicManager {
+  private queues = new Map<string, GuildQueue>();
+
+  getQueue(guildId: string): GuildQueue | undefined {
+    return this.queues.get(guildId);
+  }
+
+  createQueue(guildId: string, voiceChannelId: string, textChannel: TextBasedChannel): GuildQueue {
+    const queue: GuildQueue = {
+      guildId,
+      voiceChannelId,
+      textChannel,
+      connection: null,
+      player: null,
+      tracks: [],
+      playing: false,
+      loop: false,
+      shuffle: false,
+      volume: 80,
+      paused: false
+    };
+    this.queues.set(guildId, queue);
+    return queue;
+  }
+
+  async play(guildId: string, voiceChannelId: string, query: string, requester: string, textChannel: TextBasedChannel): Promise<Track | null> {
+    let queue = this.getQueue(guildId);
+    if (!queue) {
+      queue = this.createQueue(guildId, voiceChannelId, textChannel);
+    }
+
+    let track: Track;
+    
+    try {
+      // Validate query
+      const validation = await play.validate(query);
+      if (validation === 'yt_video' || query.startsWith('http')) {
+        const info = await play.video_info(query);
+        track = {
+          title: info.video_details.title || 'Unknown Video',
+          url: info.video_details.url,
+          duration: info.video_details.durationRaw || '00:00',
+          requester,
+          thumbnail: info.video_details.thumbnails[0]?.url
+        };
+      } else {
+        // Search YouTube
+        const results = await play.search(query, { limit: 1 });
+        if (!results || results.length === 0) {
+          return null;
+        }
+        const video = results[0];
+        track = {
+          title: video.title || 'Unknown Video',
+          url: video.url,
+          duration: video.durationRaw || '00:00',
+          requester,
+          thumbnail: video.thumbnails[0]?.url
+        };
+      }
+
+      queue.tracks.push(track);
+
+      if (!queue.playing) {
+        queue.playing = true;
+        await this.startStream(guildId);
+      }
+
+      return track;
+    } catch (err) {
+      logger.error('Error during play resolution:', { error: err });
+      return null;
+    }
+  }
+
+  private async startStream(guildId: string): Promise<void> {
+    const queue = this.getQueue(guildId);
+    if (!queue || queue.tracks.length === 0) {
+      this.destroyQueue(guildId);
+      return;
+    }
+
+    const track = queue.tracks[0];
+    try {
+      // 1. Join Voice Channel
+      if (!queue.connection) {
+        queue.connection = joinVoiceChannel({
+          channelId: queue.voiceChannelId,
+          guildId: queue.guildId,
+          adapterCreator: queue.textChannel.guild.voiceAdapterCreator as any,
+        });
+
+        // Handle disconnects
+        queue.connection.on(VoiceConnectionStatus.Disconnected, () => {
+          this.destroyQueue(guildId);
+        });
+      }
+
+      // 2. Create Player
+      if (!queue.player) {
+        queue.player = createAudioPlayer();
+        queue.connection.subscribe(queue.player);
+
+        queue.player.on(AudioPlayerStatus.Idle, () => {
+          this.handleNextTrack(guildId);
+        });
+
+        queue.player.on('error', (err) => {
+          logger.error('Audio Player Error:', { error: err });
+          this.handleNextTrack(guildId);
+        });
+      }
+
+      // 3. Get Audio Stream
+      const stream = await play.stream(track.url);
+      const resource = createAudioResource(stream.stream, {
+        inputType: stream.type,
+        inlineVolume: true
+      });
+
+      resource.volume?.setVolume(queue.volume / 100);
+      queue.player.play(resource);
+      queue.paused = false;
+
+      // Send announcement
+      const { EmbedBuilder } = await import('discord.js');
+      const embed = new EmbedBuilder()
+        .setTitle('▶️ Đang Phát')
+        .setDescription(`[**${track.title}**](${track.url})`)
+        .setColor(0x1db954)
+        .addFields(
+          { name: '⏱️ Thời lượng', value: track.duration, inline: true },
+          { name: '👤 Yêu cầu bởi', value: track.requester, inline: true }
+        );
+      if (track.thumbnail) {
+        embed.setThumbnail(track.thumbnail);
+      }
+      await queue.textChannel.send({ embeds: [embed] }).catch(() => {});
+
+    } catch (err) {
+      logger.error('Error starting stream:', { error: err });
+      queue.textChannel.send(`❌ Không thể phát bài **${track.title}** do lỗi hệ thống phát nhạc.`).catch(() => {});
+      this.handleNextTrack(guildId);
+    }
+  }
+
+  private handleNextTrack(guildId: string): void {
+    const queue = this.getQueue(guildId);
+    if (!queue) return;
+
+    const currentTrack = queue.tracks.shift();
+    if (queue.loop && currentTrack) {
+      queue.tracks.push(currentTrack);
+    }
+
+    if (queue.tracks.length > 0) {
+      this.startStream(guildId);
+    } else {
+      this.destroyQueue(guildId);
+    }
+  }
+
+  skip(guildId: string): boolean {
+    const queue = this.getQueue(guildId);
+    if (!queue || !queue.player) return false;
+    queue.player.stop();
+    return true;
+  }
+
+  stop(guildId: string): boolean {
+    const queue = this.getQueue(guildId);
+    if (!queue) return false;
+    this.destroyQueue(guildId);
+    return true;
+  }
+
+  pause(guildId: string): boolean {
+    const queue = this.getQueue(guildId);
+    if (!queue || !queue.player) return false;
+    if (queue.paused) {
+      queue.player.unpause();
+      queue.paused = false;
+    } else {
+      queue.player.pause();
+      queue.paused = true;
+    }
+    return true;
+  }
+
+  setVolume(guildId: string, volume: number): boolean {
+    const queue = this.getQueue(guildId);
+    if (!queue) return false;
+    queue.volume = volume;
+    if (queue.player) {
+      const state = queue.player.state;
+      if (state.status === AudioPlayerStatus.Playing && (state as any).resource?.volume) {
+        (state as any).resource.volume.setVolume(volume / 100);
+      }
+    }
+    return true;
+  }
+
+  shuffle(guildId: string): boolean {
+    const queue = this.getQueue(guildId);
+    if (!queue || queue.tracks.length <= 1) return false;
+    
+    const nowPlaying = queue.tracks.shift()!;
+    for (let i = queue.tracks.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [queue.tracks[i], queue.tracks[j]] = [queue.tracks[j]!, queue.tracks[i]!];
+    }
+    queue.tracks.unshift(nowPlaying);
+    return true;
+  }
+
+  private destroyQueue(guildId: string): void {
+    const queue = this.getQueue(guildId);
+    if (!queue) return;
+
+    try {
+      if (queue.player) {
+        queue.player.stop();
+      }
+      if (queue.connection) {
+        queue.connection.destroy();
+      }
+    } catch {}
+
+    this.queues.delete(guildId);
+  }
+}
+
+export const musicManager = new MusicManager();
