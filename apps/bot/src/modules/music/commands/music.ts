@@ -5,6 +5,8 @@ import {
 import { ICommand } from '../../../core/interfaces/ICommand';
 import { Kernel } from '../../../core/Kernel';
 import { musicManager } from '../services/MusicManager';
+import play from 'play-dl';
+import { logger } from '../../../core/logger/Logger';
 
 export default class MusicCommand implements ICommand {
   data = new SlashCommandBuilder()
@@ -26,7 +28,10 @@ export default class MusicCommand implements ICommand {
     .addSubcommand(s => s.setName('remove').setDescription('🗑️ Xóa bài khỏi queue')
       .addIntegerOption(o => o.setName('position').setDescription('Vị trí trong queue (1-based)').setRequired(true).setMinValue(1))
     )
-    .addSubcommand(s => s.setName('clear').setDescription('🗑️ Xóa toàn bộ queue'));
+    .addSubcommand(s => s.setName('clear').setDescription('🗑️ Xóa toàn bộ queue'))
+    .addSubcommand(s => s.setName('search').setDescription('🔍 Tìm kiếm bài hát và chọn từ menu')
+      .addStringOption(o => o.setName('query').setDescription('Từ khóa tìm kiếm').setRequired(true))
+    ) as any;
 
   async execute(interaction: ChatInputCommandInteraction, kernel: Kernel): Promise<void> {
     const sub = interaction.options.getSubcommand();
@@ -196,6 +201,80 @@ export default class MusicCommand implements ICommand {
       const count = queue.tracks.length - 1;
       queue.tracks = [queue.tracks[0]!]; // Keep only the playing one
       await interaction.reply(`🗑️ Đã xóa **${count}** bài hát khỏi hàng đợi.`);
+
+    } else if (sub === 'search') {
+      const query = interaction.options.getString('query', true);
+
+      if (!member.voice.channelId) {
+        return void interaction.reply({ content: '❌ Bạn cần tham gia kênh voice trước!', ephemeral: true });
+      }
+
+      await interaction.deferReply();
+
+      let results: any[] = [];
+      try {
+        results = await play.search(query, { limit: 5 });
+      } catch (err: any) {
+        logger.warn(`YouTube search failed during command: ${err.message}. Trying SoundCloud search...`);
+      }
+
+      // Fallback search to SoundCloud if YouTube yields nothing
+      if (!results || results.length === 0) {
+        try {
+          const client_id = await play.getFreeClientID();
+          await play.setToken({ soundcloud: { client_id } });
+          results = await play.search(query, {
+            source: { soundcloud: 'tracks' },
+            limit: 5
+          });
+        } catch (scErr: any) {
+          logger.error('SoundCloud search failed during command:', scErr);
+        }
+      }
+
+      if (!results || results.length === 0) {
+        return void interaction.editReply('❌ Không tìm thấy kết quả tìm kiếm nào phù hợp. Hãy thử lại với từ khóa khác.');
+      }
+
+      const { StringSelectMenuBuilder, ActionRowBuilder } = await import('discord.js');
+
+      const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId(`music:search:select:${interaction.user.id}`)
+        .setPlaceholder('Chọn bài hát muốn phát...')
+        .addOptions(
+          results.map((item: any) => {
+            const title = item.title || item.name || 'Unknown Track';
+            const url = item.url || '';
+            const duration = item.durationRaw || (item.durationInMs ? `${Math.floor(item.durationInMs / 60000)}:${Math.floor((item.durationInMs % 60000) / 1000).toString().padStart(2, '0')}` : '00:00');
+            const author = item.channel?.name || item.user?.username || 'Unknown Author';
+
+            return {
+              label: title.slice(0, 100),
+              description: `Thời lượng: ${duration} | Tác giả: ${author}`.slice(0, 100),
+              value: url
+            };
+          })
+        );
+
+      const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+      const embed = new EmbedBuilder()
+        .setTitle('🔍 Kết Quả Tìm Kiếm')
+        .setColor(0x1db954)
+        .setDescription(
+          results.map((item: any, i: number) => {
+            const title = item.title || item.name || 'Unknown Track';
+            const duration = item.durationRaw || (item.durationInMs ? `${Math.floor(item.durationInMs / 60000)}:${Math.floor((item.durationInMs % 60000) / 1000).toString().padStart(2, '0')}` : '00:00');
+            return `**${i + 1}.** [${title}](${item.url}) — *${duration}*`;
+          }).join('\n')
+        )
+        .setFooter({ text: 'Hãy chọn 1 bài hát từ danh sách dưới đây để phát!' })
+        .setTimestamp();
+
+      await interaction.editReply({
+        embeds: [embed],
+        components: [row]
+      });
     }
   }
 }

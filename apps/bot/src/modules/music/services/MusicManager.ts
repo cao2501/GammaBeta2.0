@@ -83,30 +83,46 @@ class MusicManager {
     
     try {
       // Validate query
-      const validation = await play.validate(query);
-      if (validation === 'yt_video' || query.startsWith('http')) {
-        const info = await play.video_info(query);
+      if (play.is_soundcloud_link(query)) {
+        await this.ensureSoundCloudAuth();
+        const info = await play.soundcloud(query) as any;
+        const mins = Math.floor((info.durationInMs || 0) / 60000);
+        const secs = Math.floor(((info.durationInMs || 0) % 60000) / 1000);
+        const durationStr = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        
         track = {
-          title: info.video_details.title || 'Unknown Video',
-          url: info.video_details.url,
-          duration: info.video_details.durationRaw || '00:00',
+          title: info.name || 'Unknown SoundCloud Track',
+          url: info.url,
+          duration: durationStr,
           requester,
-          thumbnail: info.video_details.thumbnails[0]?.url
+          thumbnail: info.thumbnail || undefined
         };
       } else {
-        // Search YouTube
-        const results = await play.search(query, { limit: 1 });
-        if (!results || results.length === 0) {
-          return null;
+        const validation = await play.validate(query);
+        if (validation === 'yt_video' || (query.startsWith('http') && !query.includes('soundcloud.com'))) {
+          const info = await play.video_info(query);
+          track = {
+            title: info.video_details.title || 'Unknown Video',
+            url: info.video_details.url,
+            duration: info.video_details.durationRaw || '00:00',
+            requester,
+            thumbnail: info.video_details.thumbnails[0]?.url
+          };
+        } else {
+          // Search YouTube
+          const results = await play.search(query, { limit: 1 });
+          if (!results || results.length === 0) {
+            return null;
+          }
+          const video = results[0];
+          track = {
+            title: video.title || 'Unknown Video',
+            url: video.url,
+            duration: video.durationRaw || '00:00',
+            requester,
+            thumbnail: video.thumbnails[0]?.url
+          };
         }
-        const video = results[0];
-        track = {
-          title: video.title || 'Unknown Video',
-          url: video.url,
-          duration: video.durationRaw || '00:00',
-          requester,
-          thumbnail: video.thumbnails[0]?.url
-        };
       }
 
       queue.tracks.push(track);
