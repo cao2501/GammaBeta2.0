@@ -146,12 +146,27 @@ class MusicManager {
         });
       }
 
-      // 3. Get Audio Stream
-      const stream = await play.stream(track.url);
-      const resource = createAudioResource(stream.stream, {
-        inputType: stream.type,
-        inlineVolume: true
-      });
+      // 3. Get Audio Stream with robust fallback for YouTube signature cipher changes
+      let resource: any;
+      try {
+        const stream = await play.stream(track.url);
+        resource = createAudioResource(stream.stream, {
+          inputType: stream.type,
+          inlineVolume: true
+        });
+      } catch (err: any) {
+        logger.warn(`Standard play-dl stream failed for ${track.title}: ${err.message}. Attempting format-18 fallback...`);
+        const info = await play.video_info(track.url);
+        const fallbackFormat = info.format.find(f => f.itag === 18) || info.format.find(f => f.url);
+        if (fallbackFormat && fallbackFormat.url) {
+          logger.info(`Fallback stream succeeded using format ${fallbackFormat.itag} for ${track.title}`);
+          resource = createAudioResource(fallbackFormat.url, {
+            inlineVolume: true
+          });
+        } else {
+          throw new Error('No deciphered formats available on YouTube.');
+        }
+      }
 
       resource.volume?.setVolume(queue.volume / 100);
       queue.player.play(resource);
