@@ -140,6 +140,11 @@ class MusicManager {
           adapterCreator: queue.textChannel.guild.voiceAdapterCreator as any,
         });
 
+        // Debug Connection State
+        queue.connection.on('stateChange', (oldState, newState) => {
+          logger.info(`Voice Connection for ${guildId} changed from ${oldState.status} to ${newState.status}`);
+        });
+
         // Handle disconnects
         queue.connection.on(VoiceConnectionStatus.Disconnected, () => {
           this.destroyQueue(guildId);
@@ -150,6 +155,11 @@ class MusicManager {
       if (!queue.player) {
         queue.player = createAudioPlayer();
         queue.connection.subscribe(queue.player);
+
+        // Debug Player State
+        queue.player.on('stateChange', (oldState, newState) => {
+          logger.info(`Audio Player for ${guildId} changed from ${oldState.status} to ${newState.status}`);
+        });
 
         queue.player.on(AudioPlayerStatus.Idle, () => {
           this.handleNextTrack(guildId);
