@@ -102,8 +102,8 @@ class MusicManager {
       }
 
       return track;
-    } catch (err) {
-      logger.error('Error during play resolution:', { error: err });
+    } catch (err: any) {
+      logger.error(`Error during play resolution: ${err.message}`, { stack: err.stack });
       return null;
     }
   }
@@ -187,9 +187,9 @@ class MusicManager {
       }
       await queue.textChannel.send({ embeds: [embed] }).catch(() => {});
 
-    } catch (err) {
-      logger.error('Error starting stream:', { error: err });
-      queue.textChannel.send(`❌ Không thể phát bài **${track.title}** do lỗi hệ thống phát nhạc.`).catch(() => {});
+    } catch (err: any) {
+      logger.error(`Error starting stream for ${track.title}: ${err.message}`, { stack: err.stack });
+      queue.textChannel.send(`❌ Không thể phát bài **${track.title}** do lỗi hệ thống phát nhạc. Chi tiết: ${err.message}`).catch(() => {});
       this.handleNextTrack(guildId);
     }
   }
