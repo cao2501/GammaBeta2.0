@@ -71,6 +71,7 @@ export class TicketService {
     // Parse button configs
     let buttonLabel = type || 'ticket';
     let welcomeTemplate = 'Xin chào {user}! Vui lòng mô tả vấn đề của bạn và staff sẽ hỗ trợ sớm.';
+    let welcomeTitle = '🎫 Ticket Mới';
 
     if (config.buttons && Array.isArray(config.buttons)) {
       const foundBtn = config.buttons.find((b: any) => typeof b === 'object' && b.id === type);
@@ -78,6 +79,9 @@ export class TicketService {
         buttonLabel = foundBtn.id || type || 'ticket';
         if (foundBtn.welcomeMessage) {
           welcomeTemplate = foundBtn.welcomeMessage;
+        }
+        if (foundBtn.welcomeTitle) {
+          welcomeTitle = foundBtn.welcomeTitle;
         }
       }
     }
@@ -134,7 +138,7 @@ export class TicketService {
     const welcomeMsg = welcomeTemplate.replace(/{user}/g, `${interaction.user}`);
 
     const embed = new EmbedBuilder()
-      .setTitle('🎫 Ticket Mới')
+      .setTitle(welcomeTitle)
       .setColor(0x5865f2)
       .setDescription(welcomeMsg)
       .setTimestamp();
