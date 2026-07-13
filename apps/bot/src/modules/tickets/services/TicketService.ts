@@ -44,6 +44,8 @@ export class TicketService {
     const panel = await kernel.db.ticketPanel.findUnique({ where: { id: panelId } });
     if (!panel) return void interaction.editReply('❌ Panel không tồn tại.');
 
+    const config = JSON.parse(panel.config);
+
     // Check if user already has an open ticket in this guild
     const existing = await kernel.db.ticket.findFirst({
       where: { guildId: interaction.guildId!, userId: interaction.user.id, status: 'OPEN' },

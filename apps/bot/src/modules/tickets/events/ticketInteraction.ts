@@ -24,14 +24,14 @@ export default class TicketInteractionEvent implements IEvent<'interactionCreate
     } else if (action === 'close') {
       await interaction.reply({ content: '🔄 Đang xử lý đóng ticket và sao lưu dữ liệu...', ephemeral: true });
       const channel = interaction.channel;
-      if (channel && (channel.isTextBased() || channel.isThread())) {
+      if (channel && channel.isTextBased()) {
         await TicketService.closeTicket(kernel, channel as any, interaction.user, 'Đóng bằng nút bấm');
       }
       
     } else if (action === 'claim') {
       await interaction.reply({ content: '🔄 Đang nhận hỗ trợ...', ephemeral: true });
       const channel = interaction.channel;
-      if (channel && (channel.isTextBased() || channel.isThread())) {
+      if (channel && channel.isTextBased()) {
         await TicketService.claimTicket(kernel, channel as any, interaction.user);
       }
     }
