@@ -200,11 +200,18 @@
             </div>
 
             <div class="alias-add-form" style="margin-bottom: 25px;">
-              <div class="alias-form-row">
+              <div class="alias-form-row" style="gap: 15px;">
                 <div class="alias-form-col" style="flex: 1;">
-                  <label class="alias-label">Chọn lệnh slash cần cấu hình</label>
-                  <select id="perm-command-select" class="glass-select alias-select" style="width: 100%;">
-                    <option value="">-- Chọn lệnh --</option>
+                  <label class="alias-label">1. Chọn Module cần cấu hình</label>
+                  <select id="perm-module-select" class="glass-select alias-select" style="width: 100%;">
+                    <option value="">-- Chọn Module --</option>
+                  </select>
+                </div>
+                <span class="alias-arrow" style="align-self: flex-end; margin-bottom: 12px; margin-left: 5px; margin-right: 5px;">→</span>
+                <div class="alias-form-col" style="flex: 1;">
+                  <label class="alias-label">2. Chọn Lệnh con <span class="alias-optional">(Tùy chọn)</span></label>
+                  <select id="perm-command-select" class="glass-select alias-select" style="width: 100%;" disabled>
+                    <option value="">-- Tất cả lệnh trong Module --</option>
                   </select>
                 </div>
               </div>
@@ -212,7 +219,7 @@
 
             <div id="permission-settings-area" style="display: none;">
               <h3 style="margin-bottom: 15px; font-size: 1.25rem;">
-                Cấu hình lệnh: <code style="color: var(--accent-gold); font-size: 1.2rem;">/<span id="perm-editing-command-name">ping</span></code>
+                Cấu hình: <code style="color: var(--accent-gold); font-size: 1.2rem;"><span id="perm-editing-command-name">ping</span></code>
               </h3>
 
               <div class="permissions-columns-grid">

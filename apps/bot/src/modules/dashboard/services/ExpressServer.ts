@@ -407,25 +407,29 @@ export class ExpressServer {
 			}
 		});
 
-		// GET: get all slash commands (including subcommands and groups)
+		// GET: get all slash commands mapped by their module ownership
 		this.app.get('/api/guilds/:id/commands', requireAuth, (req, res) => {
-			const commandsList: string[] = [];
+			const map: Record<string, string[]> = {};
+			
 			for (const [cmdName, cmd] of this.kernel.client.commands) {
-				commandsList.push(cmdName);
+				const moduleName = this.kernel.client.commandModuleMap.get(cmdName) ?? 'system';
+				if (!map[moduleName]) {
+					map[moduleName] = [];
+				}
+				
+				map[moduleName].push(cmdName);
 				
 				try {
 					const json = (cmd.data as any).toJSON();
 					if (Array.isArray(json.options)) {
 						for (const opt of json.options) {
-							// Subcommand (Type 1)
 							if (opt.type === 1) {
-								commandsList.push(`${cmdName} ${opt.name}`);
+								map[moduleName].push(`${cmdName} ${opt.name}`);
 							}
-							// Subcommand Group (Type 2)
 							if (opt.type === 2 && Array.isArray(opt.options)) {
 								for (const sub of opt.options) {
 									if (sub.type === 1) {
-										commandsList.push(`${cmdName} ${opt.name} ${sub.name}`);
+										map[moduleName].push(`${cmdName} ${opt.name} ${sub.name}`);
 									}
 								}
 							}
@@ -433,8 +437,13 @@ export class ExpressServer {
 					}
 				} catch {}
 			}
-			commandsList.sort();
-			res.json(commandsList);
+			
+			// Sort the lists
+			for (const mName of Object.keys(map)) {
+				map[mName].sort();
+			}
+			
+			res.json(map);
 		});
 
 		// GET: get permission rules
