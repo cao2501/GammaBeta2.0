@@ -99,6 +99,15 @@ export default class ShopCommand implements ICommand {
       .addAttachmentOption(o => o.setName('file').setDescription('Tải lên ảnh mới từ máy (tùy chọn)'))
       .addStringOption(o => o.setName('description').setDescription('Mô tả/Giới thiệu sản phẩm mới (hoặc "none" để xóa)'))
       .addStringOption(o => o.setName('emoji').setDescription('Emoji tùy chỉnh hiển thị bên trái tên (hoặc "none" để xóa)'))
+    )
+    .addSubcommand(s => s.setName('give').setDescription('[Admin] Tặng vật phẩm từ cửa hàng cho người dùng')
+      .addStringOption(o => o.setName('category').setDescription('Danh mục sản phẩm').setRequired(true).addChoices(
+        { name: '📦 Vật phẩm', value: 'GENERAL' },
+        { name: '💍 Nhẫn cưới', value: 'RING' },
+      ))
+      .addIntegerOption(o => o.setName('id').setDescription('ID sản phẩm (Số thứ tự hiển thị trong /shop list)').setRequired(true).setMinValue(1))
+      .addUserOption(o => o.setName('user').setDescription('Người nhận').setRequired(true))
+      .addIntegerOption(o => o.setName('quantity').setDescription('Số lượng muốn tặng (mặc định: 1)').setMinValue(1))
     );
 
   async execute(interaction: any, kernel: Kernel): Promise<void> {
@@ -371,6 +380,68 @@ export default class ShopCommand implements ICommand {
 
       await kernel.db.shopItem.update({ where: { id: item.id }, data: updates });
       await interaction.editReply({ content: `✅ Đã cập nhật sản phẩm **${item.name}** (ID: #${String(itemIndex).padStart(2, '0')}).` });
+
+    // ─── GIVE ────────────────────────────────────────────────────────────────
+    } else if (sub === 'give') {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+        return void interaction.editReply({ content: '❌ Cần quyền Manage Server.' });
+      }
+      const category = interaction.options.getString('category', true);
+      const itemIndex = interaction.options.getInteger('id', true); // 1-based
+      const targetUser = interaction.options.getUser('user', true);
+      const quantity = interaction.options.getInteger('quantity') ?? 1;
+
+      if (targetUser.bot) {
+        return void interaction.editReply({ content: '❌ Không thể tặng vật phẩm cho bot.' });
+      }
+      if (quantity <= 0) {
+        return void interaction.editReply({ content: '❌ Số lượng tặng phải lớn hơn 0.' });
+      }
+
+      const itemsInCat = await kernel.db.shopItem.findMany({
+        where: { guildId, category, enabled: true },
+        orderBy: { price: 'asc' },
+      });
+
+      const item = itemsInCat[itemIndex - 1];
+      if (!item) {
+        return void interaction.editReply({ content: `❌ Không tìm thấy sản phẩm số **#${String(itemIndex).padStart(2, '0')}** trong danh mục **${category === 'RING' ? 'Nhẫn cưới' : 'Vật phẩm'}**.` });
+      }
+
+      // Add to receiver
+      const targetPurchase = await kernel.db.itemPurchase.findFirst({
+        where: { guildId, userId: targetUser.id, itemId: item.id },
+      });
+
+      if (targetPurchase) {
+        await kernel.db.itemPurchase.update({
+          where: { id: targetPurchase.id },
+          data: { quantity: targetPurchase.quantity + quantity },
+        });
+      } else {
+        await kernel.db.itemPurchase.create({
+          data: {
+            guildId,
+            userId: targetUser.id,
+            itemId: item.id,
+            quantity,
+          },
+        });
+      }
+
+      const itemEmoji = item.emoji || (category === 'RING' ? '💍' : '📦');
+
+      const embed = new EmbedBuilder()
+        .setColor(0x2ecc71)
+        .setTitle('🎁 Tặng Vật Phẩm Từ Shop (Admin)')
+        .setDescription(`Admin đã chuyển trực tiếp vật phẩm từ cửa hàng vào kho đồ của người dùng!`)
+        .addFields(
+          { name: '👤 Người nhận', value: `<@${targetUser.id}>`, inline: true },
+          { name: '📦 Vật phẩm', value: `${itemEmoji} **${item.name}** (x${quantity})`, inline: true }
+        )
+        .setTimestamp();
+
+      await interaction.editReply({ embeds: [embed] });
     }
   }
 }

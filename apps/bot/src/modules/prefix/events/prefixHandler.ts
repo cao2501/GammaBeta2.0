@@ -50,9 +50,22 @@ export default class PrefixHandlerEvent implements IEvent<'messageCreate'> {
           inventory: { command: 'inventory', subcommand: 'view' },
           inv: { command: 'inventory', subcommand: 'view' },
           give: { command: 'inventory', subcommand: 'give' },
+          shop: { command: 'shop', subcommand: 'list' },
         };
         mapping = fallbacks[aliasKey];
       }
+
+      if (mapping && (mapping.command === 'shop' || mapping.command === 'inventory') && args.length > 0) {
+        const firstArg = args[0].toLowerCase();
+        const subs = mapping.command === 'shop'
+          ? ['buy', 'add', 'remove', 'edit', 'give', 'list']
+          : ['view', 'give'];
+        if (subs.includes(firstArg)) {
+          mapping = { command: mapping.command, subcommand: firstArg };
+          args.shift();
+        }
+      }
+
       if (!mapping) return; // Unknown alias — silently ignore
 
       const command = kernel.client.commands.get(mapping.command);
