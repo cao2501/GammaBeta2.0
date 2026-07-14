@@ -50,7 +50,6 @@ export default class ShopCommand implements ICommand {
     .setName('shop')
     .setDescription('🏪 Cửa Hàng Server')
     .addSubcommand(s => s.setName('list').setDescription('📋 Xem tất cả sản phẩm trong cửa hàng'))
-    .addSubcommand(s => s.setName('inventory').setDescription('🎒 Kho đồ cá nhân của bạn'))
     .addSubcommand(s => s.setName('buy').setDescription('💳 Mua sản phẩm — dùng /shop list để xem ID')
       .addIntegerOption(o => o.setName('id').setDescription('ID sản phẩm (số thứ tự hiển thị trong /shop list)').setRequired(true).setMinValue(1))
     )
@@ -171,46 +170,6 @@ export default class ShopCommand implements ICommand {
         embeds: [embed],
         components: [rowMenu]
       });
-
-    // ─── INVENTORY ───────────────────────────────────────────────────────────
-    } else if (sub === 'inventory') {
-      await interaction.deferReply();
-      
-      const purchases = await kernel.db.itemPurchase.findMany({
-        where: { guildId, userId: interaction.user.id },
-        include: { item: true }
-      });
-
-      const allItems = await kernel.db.shopItem.findMany({
-        where: { guildId },
-        orderBy: [{ category: 'asc' }, { price: 'asc' }],
-      });
-
-      const generalPurchases = purchases.filter(p => p.item.category === 'GENERAL');
-      const ringPurchases = purchases.filter(p => p.item.category === 'RING');
-
-      const formatLine = (p: any) => {
-        const displayId = allItems.findIndex(x => x.id === p.item.id) + 1;
-        const emoji = p.item.emoji || TYPE_EMOJI[p.item.type] || '🛒';
-        const idStr = displayId > 0 ? `#${displayId}` : 'N/A';
-        return `${emoji} **${p.item.name}** (x${p.quantity}) - ID sản phẩm: \`${idStr}\``;
-      };
-
-      const embed = new EmbedBuilder()
-        .setColor(0xff7bb5)
-        .setTitle(`🎒 Kho Đồ Cá Nhân — <@${interaction.user.id}>`)
-        .setThumbnail(interaction.user.displayAvatarURL())
-        .setTimestamp();
-
-      const generalLines = generalPurchases.map(formatLine).join('\n');
-      const ringLines = ringPurchases.map(formatLine).join('\n');
-
-      embed.addFields(
-        { name: '📦 Vật Phẩm Sở Hữu', value: generalLines || '*Trống*', inline: false },
-        { name: '💍 Nhẫn Cưới Sở Hữu', value: ringLines || '*Trống*', inline: false }
-      );
-
-      await interaction.editReply({ embeds: [embed] });
 
     // ─── BUY ─────────────────────────────────────────────────────────────────
     } else if (sub === 'buy') {
