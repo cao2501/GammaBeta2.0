@@ -194,7 +194,7 @@ export class CardRenderer {
    */
   public static async drawLeaderboardCard(
     guildName: string,
-    type: 'xp' | 'coins' | 'voice',
+    type: string,
     members: Array<{ username: string; avatarUrl: string; value: number; level?: number }>,
     callerRank: { rank: number; username: string; avatarUrl: string; value: number; level?: number } | null
   ): Promise<Buffer> {
@@ -223,9 +223,13 @@ export class CardRenderer {
 
     // Large Title with Emoji
     const typeLabels: Record<string, string> = {
-      xp: '💬 Cấp Độ Chat',
+      xp: '💬 Cấp Độ Chat (Tất cả)',
       coins: '💰 Tài Sản Coins',
-      voice: '🎙️ Thời Gian Voice'
+      voice: '🎙️ Thời Gian Voice (Tất cả)',
+      chat_weekly: '💬 Top Chat Tuần',
+      chat_monthly: '💬 Top Chat Tháng',
+      voice_weekly: '🎙️ Top Voice Tuần',
+      voice_monthly: '🎙️ Top Voice Tháng',
     };
     ctx.fillStyle = Theme.colors.textPrimary;
     ctx.font = 'bold 42px "Segoe UI", "Segoe UI Emoji", "Segoe UI Symbol", Arial, sans-serif';
@@ -293,7 +297,10 @@ export class CardRenderer {
       ctx.fillText(`@${displayUser}`, avatarX, p.y + p.h - 50);
 
       // Score Value text
-      const scoreText = p.item.level !== undefined ? `LV.${p.item.level}` : CanvasRenderer.formatNumber(p.item.value);
+      const scoreText = p.item.level !== undefined ? `LV.${p.item.level}` :
+                        type.startsWith('voice') ? `${p.item.value.toLocaleString()} phút` :
+                        type.startsWith('chat') ? `${p.item.value.toLocaleString()} tin` :
+                        CanvasRenderer.formatNumber(p.item.value);
       ctx.fillStyle = Theme.colors.accentGold;
       ctx.font = 'bold 13px Consolas, monospace';
       ctx.fillText(scoreText, avatarX, p.y + p.h - 25);
@@ -332,7 +339,10 @@ export class CardRenderer {
       ctx.fillStyle = Theme.colors.accentGold;
       ctx.font = 'bold 14px Consolas, monospace';
       ctx.textAlign = 'right';
-      const rowScoreText = item.level !== undefined ? `LV.${item.level}` : CanvasRenderer.formatNumber(item.value);
+      const rowScoreText = item.level !== undefined ? `LV.${item.level}` :
+                           type.startsWith('voice') ? `${item.value.toLocaleString()} phút` :
+                           type.startsWith('chat') ? `${item.value.toLocaleString()} tin` :
+                           CanvasRenderer.formatNumber(item.value);
       ctx.fillText(rowScoreText, itemX + itemW - 30, listY + 36);
       ctx.textAlign = 'left'; // Reset
 
@@ -381,7 +391,10 @@ export class CardRenderer {
       ctx.fillStyle = Theme.colors.accentGold;
       ctx.font = 'bold 14px Consolas, monospace';
       ctx.textAlign = 'right';
-      const callerScoreText = callerRank.level !== undefined ? `LV.${callerRank.level}` : CanvasRenderer.formatNumber(callerRank.value);
+      const callerScoreText = callerRank.level !== undefined ? `LV.${callerRank.level}` :
+                              type.startsWith('voice') ? `${callerRank.value.toLocaleString()} phút` :
+                              type.startsWith('chat') ? `${callerRank.value.toLocaleString()} tin` :
+                              CanvasRenderer.formatNumber(callerRank.value);
       ctx.fillText(callerScoreText, itemX + itemW - 30, callerY + 36);
       ctx.textAlign = 'left';
 
