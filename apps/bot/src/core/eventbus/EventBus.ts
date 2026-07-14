@@ -24,6 +24,7 @@ export interface BotEvents {
   'ticket:claim': { guildId: string; ticketId: string; moderatorId: string };
 
   // Giveaway events
+  'giveaway:start': any;
   'giveaway:end': { guildId: string; giveawayId: string; winners: string[] };
   'giveaway:enter': { guildId: string; giveawayId: string; userId: string };
 

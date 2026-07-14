@@ -15,6 +15,7 @@ export default class GiveawayCommand implements ICommand {
       .addStringOption(o => o.setName('prize').setDescription('Giải thưởng').setRequired(true))
       .addStringOption(o => o.setName('duration').setDescription('Thời gian (vd: 1h, 1d)').setRequired(true))
       .addIntegerOption(o => o.setName('winners').setDescription('Số người thắng').setMinValue(1).setMaxValue(20))
+      .addStringOption(o => o.setName('ping').setDescription('Ping vai trò, mọi người hoặc thành viên (vd: @everyone, @Role)'))
     )
     .addSubcommand(s => s.setName('end').setDescription('Kết thúc giveaway sớm').addStringOption(o => o.setName('id').setDescription('Giveaway ID').setRequired(true)))
     .addSubcommand(s => s.setName('reroll').setDescription('Reroll người thắng').addStringOption(o => o.setName('id').setDescription('Giveaway ID').setRequired(true)))
@@ -30,6 +31,7 @@ export default class GiveawayCommand implements ICommand {
       const prize = interaction.options.getString('prize', true);
       const durationStr = interaction.options.getString('duration', true);
       const winnerCount = interaction.options.getInteger('winners') ?? 1;
+      const ping = interaction.options.getString('ping');
       const duration = ms(durationStr);
       if (!duration) return void interaction.editReply('❌ Thời gian không hợp lệ.');
       const endsAt = new Date(Date.now() + duration);
@@ -53,7 +55,7 @@ export default class GiveawayCommand implements ICommand {
         new ButtonBuilder().setCustomId('giveaway:list:PLACEHOLDER').setLabel('👥 Xem DS').setStyle(ButtonStyle.Secondary),
       );
 
-      const msg = await interaction.editReply({ embeds: [embed], components: [row] });
+      const msg = await interaction.editReply({ content: ping || undefined, embeds: [embed], components: [row] });
 
       const giveaway = await kernel.db.giveaway.create({
         data: { guildId, channelId: interaction.channelId, messageId: (msg as any).id, hostId: interaction.user.id, prize, winnerCount, endsAt },
@@ -64,7 +66,10 @@ export default class GiveawayCommand implements ICommand {
         new ButtonBuilder().setCustomId(`giveaway:enter:${giveaway.id}`).setLabel('🎉 Tham Gia').setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`giveaway:list:${giveaway.id}`).setLabel('👥 Xem DS').setStyle(ButtonStyle.Secondary),
       );
-      await (msg as any).edit({ embeds: [embed], components: [updatedRow] });
+      await (msg as any).edit({ content: ping || undefined, embeds: [embed], components: [updatedRow] });
+
+      // Emit start event for dynamic timer
+      kernel.eventBus.emit('giveaway:start', giveaway);
     } else if (sub === 'list') {
       const giveaways = await kernel.db.giveaway.findMany({ where: { guildId, status: 'ACTIVE' }, orderBy: { endsAt: 'asc' }, take: 10 });
       const embed = new EmbedBuilder().setTitle('🎉 Giveaways Đang Diễn Ra').setColor(0xf1c40f)

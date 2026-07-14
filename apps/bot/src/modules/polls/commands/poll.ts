@@ -16,6 +16,7 @@ export default class PollCommand implements ICommand {
       .addBooleanOption(o => o.setName('anonymous').setDescription('Ẩn danh?'))
       .addBooleanOption(o => o.setName('multi').setDescription('Nhiều lựa chọn?'))
       .addStringOption(o => o.setName('duration').setDescription('Thời gian tự kết thúc (vd: 1h)'))
+      .addStringOption(o => o.setName('ping').setDescription('Ping vai trò, mọi người hoặc thành viên (vd: @everyone, @Role)'))
     )
     .addSubcommand(s => s.setName('end').setDescription('Kết thúc poll').addStringOption(o => o.setName('id').setDescription('Poll ID').setRequired(true)));
 
@@ -30,6 +31,7 @@ export default class PollCommand implements ICommand {
       const multi = interaction.options.getBoolean('multi') ?? false;
       const durationStr = interaction.options.getString('duration');
       const endsAt = durationStr ? new Date(Date.now() + ms(durationStr)) : null;
+      const ping = interaction.options.getString('ping');
 
       await ensureGuild(interaction.guildId!, interaction.guild!.name);
 
@@ -51,7 +53,7 @@ export default class PollCommand implements ICommand {
         rows.push(row);
       });
 
-      const msg = await interaction.editReply({ embeds: [embed], components: rows });
+      const msg = await interaction.editReply({ content: ping || undefined, embeds: [embed], components: rows });
 
       const poll = await kernel.db.poll.create({
         data: { guildId: interaction.guildId!, channelId: interaction.channelId, messageId: (msg as any).id, creatorId: interaction.user.id, question, options: JSON.stringify(optionsRaw), anonymous, multiChoice: multi, endsAt },
@@ -66,7 +68,7 @@ export default class PollCommand implements ICommand {
         });
         updatedRows.push(row);
       });
-      await (msg as any).edit({ embeds: [embed], components: updatedRows });
+      await (msg as any).edit({ content: ping || undefined, embeds: [embed], components: updatedRows });
     } else if (sub === 'end') {
       const id = interaction.options.getString('id', true);
       const poll = await kernel.db.poll.findFirst({ where: { guildId: interaction.guildId!, id: { endsWith: id }, status: 'ACTIVE' } });
