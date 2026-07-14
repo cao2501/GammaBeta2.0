@@ -732,6 +732,7 @@ model Marriage {
   user2Id     String
   ringId      String   // ItemId of the ring used
   ringName    String   // Cache ring name
+  ringEmoji   String?  // Custom ring emoji icon
   caption     String?  // Custom caption
   thumbnail   String?  // Custom thumbnail URL
   image       String?  // Custom image URL

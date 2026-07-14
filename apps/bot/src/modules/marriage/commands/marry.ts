@@ -28,6 +28,16 @@ async function getMarriage(kernel: Kernel, guildId: string, userId: string) {
 	});
 }
 
+function sortCustomLast(items: any[], category: string): void {
+  if (category === 'RING') {
+    const idx = items.findIndex(x => x.name.toLowerCase() === 'custom');
+    if (idx !== -1) {
+      const [customItem] = items.splice(idx, 1);
+      items.push(customItem);
+    }
+  }
+}
+
 async function checkRingOwnership(
 	kernel: Kernel,
 	guildId: string,
@@ -67,6 +77,9 @@ export default class MarryCommand implements ICommand {
 				.addUserOption((o) => o.setName('user').setDescription('Đối tượng cầu hôn').setRequired(true))
 				.addStringOption((o) =>
 					o.setName('ring').setDescription('ID/Tên Nhẫn đính hôn (Cần mua sẵn ở cửa hàng)').setRequired(true),
+				)
+				.addStringOption((o) =>
+					o.setName('emoji').setDescription('Emoji làm biểu tượng nhẫn cưới (Chỉ áp dụng khi dùng nhẫn Custom)').setRequired(false),
 				),
 		)
 		.addSubcommand((s) =>
@@ -114,6 +127,7 @@ export default class MarryCommand implements ICommand {
 		if (sub === 'proposal') {
 			const target = interaction.options.getUser('user', true);
 			let ringNameOrId = interaction.options.getString('ring', true).trim();
+			const customEmoji = interaction.options.getString('emoji');
 
 			// Clean up user mentions if prefix args got mixed
 			if (ringNameOrId.startsWith('<@')) {
@@ -148,6 +162,7 @@ export default class MarryCommand implements ICommand {
 					where: { guildId, category: 'RING', enabled: true },
 					orderBy: { price: 'asc' },
 				});
+				sortCustomLast(rings, 'RING');
 				ringItem = rings[parsedId - 1];
 			}
 
@@ -220,6 +235,7 @@ export default class MarryCommand implements ICommand {
 							user2Id: target.id,
 							ringId: ringItem.id,
 							ringName: ringItem.name,
+							ringEmoji: ringItem.name.toLowerCase() === 'custom' ? (customEmoji || '💍') : null,
 						},
 					});
 
@@ -260,6 +276,9 @@ export default class MarryCommand implements ICommand {
 			const daysDiff = Math.floor((Date.now() - marriage.marriedAt.getTime()) / (24 * 3600 * 1000));
 			const embedColor = parseInt(marriage.color, 16);
 
+			const ringItem = await kernel.db.shopItem.findUnique({ where: { id: marriage.ringId } });
+			const ringEmoji = marriage.ringEmoji || ringItem?.emoji || '💍';
+
 			const embed = new EmbedBuilder()
 				.setColor(isNaN(embedColor) ? 0xff7bb5 : embedColor)
 				.setTitle(`💞 Hôn Nhân Hạnh Phúc 💞`)
@@ -273,7 +292,7 @@ export default class MarryCommand implements ICommand {
 						value: `${marriage.marriedAt.toLocaleDateString('vi-VN')} (${daysDiff} ngày)`,
 						inline: true,
 					},
-					{ name: '💍 Nhẫn Cưới', value: marriage.ringName, inline: true },
+					{ name: '💍 Nhẫn Cưới', value: `${ringEmoji} ${marriage.ringName}`, inline: true },
 				)
 				.setTimestamp();
 
