@@ -290,6 +290,8 @@ model ShopItem {
   price       Int
   roleId      String?
   type        String   @default("ROLE") // ROLE, CUSTOM
+  category    String   @default("GENERAL") // GENERAL, RING
+  currency    String   @default("ECO")     // ECO, VND
   imageUrl    String?
   stock       Int?     // null = unlimited
   enabled     Boolean  @default(true)
@@ -717,6 +719,31 @@ model VndDepositRequest {
   channelId String?  // ID kênh tạo lệnh nạp tiền
   amount    Int
   createdAt DateTime @default(now())
+}
+
+// ============================================================
+// MODULE: MARRIAGE / WEDDING
+// ============================================================
+model Marriage {
+  id          String   @id @default(cuid())
+  guildId     String
+  user1Id     String
+  user2Id     String
+  ringId      String   // ItemId of the ring used
+  ringName    String   // Cache ring name
+  caption     String?  // Custom caption
+  thumbnail   String?  // Custom thumbnail URL
+  image       String?  // Custom image URL
+  color       String   @default("0xff7bb5") // Embed hex color
+  lovePoints  Int      @default(0)
+  streak      Int      @default(1)
+  lastLuvAt   DateTime?
+  marriedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([guildId, user1Id])
+  @@unique([guildId, user2Id])
+  @@index([guildId])
 }
 
 

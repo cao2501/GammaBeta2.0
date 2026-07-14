@@ -1,11 +1,15 @@
 import {
   ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits,
   ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, AttachmentBuilder,
+  ButtonBuilder, ButtonStyle,
 } from 'discord.js';
 import { ICommand } from '../../../core/interfaces/ICommand';
 import { Kernel } from '../../../core/Kernel';
 import { ensureGuild } from '../../../database/helpers';
 import { CardRenderer } from '../../../core/ui/CardRenderer';
+import { createModuleLogger } from '../../../core/logger/Logger';
+
+const log = createModuleLogger('economy');
 
 // Item type emoji mapping
 const TYPE_EMOJI: Record<string, string> = {
@@ -13,23 +17,67 @@ const TYPE_EMOJI: Record<string, string> = {
   CUSTOM: '🎁',
 };
 
+export async function seedDefaultRings(kernel: Kernel, guildId: string): Promise<void> {
+  const defaultRings = [
+    { name: 'Stardust', price: 500000, type: 'CUSTOM', category: 'RING', currency: 'VND', description: 'Nhẫn cưới Stardust tinh tú lấp lánh' },
+    { name: 'Illusion', price: 700000, type: 'CUSTOM', category: 'RING', currency: 'VND', description: 'Nhẫn cưới Illusion ảo ảnh lung linh' },
+    { name: 'Nebula Core', price: 900000, type: 'CUSTOM', category: 'RING', currency: 'VND', description: 'Nhẫn cưới Nebula Core lõi tinh vân' },
+    { name: 'Constellation', price: 1200000, type: 'CUSTOM', category: 'RING', currency: 'VND', description: 'Nhẫn cưới Constellation chòm sao lãng mạn' },
+    { name: 'Horizon', price: 1500000, type: 'CUSTOM', category: 'RING', currency: 'VND', description: 'Nhẫn cưới Horizon chân trời vĩnh cửu' },
+    { name: 'Singularity', price: 2000000, type: 'CUSTOM', category: 'RING', currency: 'VND', description: 'Nhẫn cưới Singularity điểm kỳ dị tối thượng' },
+    { name: 'Custom', price: 2500000, type: 'CUSTOM', category: 'RING', currency: 'VND', description: 'Nhẫn cưới Custom thiết kế riêng biệt' },
+  ];
+
+  for (const ring of defaultRings) {
+    const existing = await kernel.db.shopItem.findFirst({
+      where: { guildId, name: ring.name, category: 'RING' }
+    });
+    if (!existing) {
+      await kernel.db.shopItem.create({
+        data: {
+          guildId,
+          name: ring.name,
+          price: ring.price,
+          type: ring.type,
+          category: ring.category,
+          currency: ring.currency,
+          description: ring.description,
+        }
+      });
+    }
+  }
+}
+
 export default class ShopCommand implements ICommand {
   data = new SlashCommandBuilder()
     .setName('shop')
     .setDescription('🏪 Cửa Hàng Server')
-    .addSubcommand(s => s.setName('list').setDescription('📋 Xem sản phẩm trong cửa hàng'))
+    .addSubcommand(s => s.setName('list').setDescription('📋 Xem sản phẩm trong cửa hàng')
+      .addStringOption(o => o.setName('category').setDescription('Lọc theo danh mục').addChoices(
+        { name: '📦 Vật phẩm', value: 'GENERAL' },
+        { name: '💍 Nhẫn cưới', value: 'RING' },
+      ))
+    )
     .addSubcommand(s => s.setName('inventory').setDescription('🎒 Kho đồ cá nhân của bạn'))
     .addSubcommand(s => s.setName('buy').setDescription('💳 Mua sản phẩm — dùng /shop list để xem ID')
       .addIntegerOption(o => o.setName('id').setDescription('ID sản phẩm (số thứ tự hiển thị trong /shop list)').setRequired(true).setMinValue(1))
     )
     .addSubcommand(s => s.setName('add').setDescription('[Admin] Thêm sản phẩm')
       .addStringOption(o => o.setName('name').setDescription('Tên sản phẩm').setRequired(true))
-      .addIntegerOption(o => o.setName('price').setDescription('Giá (coins)').setRequired(true).setMinValue(1))
-      .addStringOption(o => o.setName('type').setDescription('Loại').setRequired(true).addChoices(
+      .addIntegerOption(o => o.setName('price').setDescription('Giá bán').setRequired(true).setMinValue(1))
+      .addStringOption(o => o.setName('type').setDescription('Loại vật phẩm').setRequired(true).addChoices(
         { name: '🎭 Role', value: 'ROLE' },
         { name: '🎁 Custom', value: 'CUSTOM' },
       ))
-      .addRoleOption(o => o.setName('role').setDescription('Role thưởng (nếu type = Role)'))
+      .addStringOption(o => o.setName('category').setDescription('Danh mục (mặc định: GENERAL)').addChoices(
+        { name: '📦 Vật phẩm thường', value: 'GENERAL' },
+        { name: '💍 Nhẫn cưới', value: 'RING' },
+      ))
+      .addStringOption(o => o.setName('currency').setDescription('Loại tiền tệ (mặc định: ECO)').addChoices(
+        { name: '💰 Coins (Eco)', value: 'ECO' },
+        { name: '💳 VNĐ (Nạp)', value: 'VND' },
+      ))
+      .addRoleOption(o => o.setName('role').setDescription('Role thưởng (nếu loại = Role)'))
       .addStringOption(o => o.setName('description').setDescription('Mô tả sản phẩm'))
       .addIntegerOption(o => o.setName('stock').setDescription('Số lượng (0 = không giới hạn)'))
       .addStringOption(o => o.setName('image').setDescription('URL hình ảnh sản phẩm'))
@@ -45,22 +93,25 @@ export default class ShopCommand implements ICommand {
       .addStringOption(o => o.setName('image').setDescription('URL hình ảnh mới (hoặc "none" để xóa)'))
     );
 
-  async execute(interaction: ChatInputCommandInteraction, kernel: Kernel): Promise<void> {
+  async execute(interaction: any, kernel: Kernel): Promise<void> {
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guildId!;
     await ensureGuild(guildId, interaction.guild!.name);
+    await seedDefaultRings(kernel, guildId);
 
     // ─── LIST ────────────────────────────────────────────────────────────────
     if (sub === 'list') {
       await interaction.deferReply();
+      const category = interaction.options.getString('category') ?? 'GENERAL';
+
       const items = await kernel.db.shopItem.findMany({
-        where: { guildId, enabled: true },
+        where: { guildId, enabled: true, category },
         orderBy: { price: 'asc' },
       });
 
       if (!items.length) {
         return void interaction.editReply({
-          content: '🏪 Cửa hàng đang trống. Admin dùng `/shop add` để thêm sản phẩm.',
+          content: `🏪 Cửa hàng danh mục **${category === 'RING' ? 'Nhẫn Cưới' : 'Vật Phẩm'}** đang trống.`,
         });
       }
 
@@ -68,11 +119,11 @@ export default class ShopCommand implements ICommand {
       const buffer = await CardRenderer.drawShopListCard(interaction.guild!.name, items);
       const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
 
-      // Select menu — each item is an option, value carries index for lookup
+      // Select menu
       const selectOptions = items.slice(0, 25).map((item, idx) =>
         new StringSelectMenuOptionBuilder()
           .setLabel(`#${idx + 1} ${item.name}`)
-          .setDescription(`💰 ${item.price.toLocaleString()} coins`)
+          .setDescription(`💰 ${item.price.toLocaleString()} ${item.currency === 'VND' ? 'VNĐ' : 'coins'}`)
           .setEmoji(TYPE_EMOJI[item.type] ?? '🛒')
           .setValue(`shop_item:${item.id}`)
       );
@@ -82,12 +133,25 @@ export default class ShopCommand implements ICommand {
         .setPlaceholder('🔍 Chọn sản phẩm để xem chi tiết...')
         .addOptions(selectOptions);
 
-      const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+      const rowMenu = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+      // Category toggle buttons
+      const btnGeneral = new ButtonBuilder()
+        .setCustomId('shop:category:GENERAL')
+        .setLabel('📦 Vật Phẩm')
+        .setStyle(category === 'GENERAL' ? ButtonStyle.Primary : ButtonStyle.Secondary);
+
+      const btnRing = new ButtonBuilder()
+        .setCustomId('shop:category:RING')
+        .setLabel('💍 Nhẫn Cưới')
+        .setStyle(category === 'RING' ? ButtonStyle.Primary : ButtonStyle.Secondary);
+
+      const rowButtons = new ActionRowBuilder<ButtonBuilder>().addComponents(btnGeneral, btnRing);
 
       await interaction.editReply({
         content: `🏪 **Cửa Hàng — ${interaction.guild!.name}**\nChọn sản phẩm dưới thanh menu để xem chi tiết và mua!`,
         files: [attachment],
-        components: [row]
+        components: [rowMenu, rowButtons]
       });
 
     // ─── INVENTORY ───────────────────────────────────────────────────────────
@@ -123,13 +187,13 @@ export default class ShopCommand implements ICommand {
       await interaction.deferReply({ ephemeral: true });
       const itemIndex = interaction.options.getInteger('id', true); // 1-based
 
-      // Fetch all enabled items sorted same as /shop list to resolve index
+      // Need to find category by indexing ALL enabled items
       const allItems = await kernel.db.shopItem.findMany({
         where: { guildId, enabled: true },
-        orderBy: { price: 'asc' },
+        orderBy: [{ category: 'asc' }, { price: 'asc' }],
       });
 
-      const item = allItems[itemIndex - 1]; // convert to 0-based
+      const item = allItems[itemIndex - 1];
       if (!item) {
         return void interaction.editReply(
           `❌ Không tìm thấy sản phẩm **#${itemIndex}**. Dùng \`/shop list\` để xem danh sách.`
@@ -144,19 +208,26 @@ export default class ShopCommand implements ICommand {
         where: { guildId_userId: { guildId, userId: interaction.user.id } },
       });
 
-      if (!member || member.balance < item.price) {
+      const isVnd = item.currency === 'VND';
+      const balanceValue = isVnd ? (member?.vnd ?? 0) : (member?.balance ?? 0);
+
+      if (!member || balanceValue < item.price) {
+        const balanceStr = isVnd ? `${balanceValue.toLocaleString()} VNĐ` : `${balanceValue.toLocaleString()} coins`;
+        const requiredStr = isVnd ? `${item.price.toLocaleString()} VNĐ` : `${item.price.toLocaleString()} coins`;
         return void interaction.editReply(
-          `❌ Không đủ tiền! Cần **${item.price.toLocaleString()} coins**, bạn có **${member?.balance.toLocaleString() ?? 0} coins**.`
+          `❌ Không đủ tiền! Cần **${requiredStr}**, bạn hiện có **${balanceStr}**.`
         );
       }
 
-      const newBalance = member.balance - item.price;
+      const newBalance = balanceValue - item.price;
 
-      // Deduct balance
+      // Deduct balance (VND or Eco coins)
       await kernel.db.guildMember.update({
         where: { guildId_userId: { guildId, userId: interaction.user.id } },
-        data: { balance: { decrement: item.price } },
+        data: isVnd ? { vnd: { decrement: item.price } } : { balance: { decrement: item.price } },
       });
+
+      log.info(`[SHOP_BUY] User ${interaction.user.id} (${interaction.user.username}) bought item ${item.name} (${item.id}) in guild ${guildId}. Price: ${item.price} ${item.currency}. Pre-balance: ${balanceValue}, Post-balance: ${newBalance}`, { module: 'economy' });
 
       // Reduce stock and disable if out of stock
       if (item.stock !== null) {
@@ -165,12 +236,12 @@ export default class ShopCommand implements ICommand {
           where: { id: item.id },
           data: {
             stock: nextStock,
-            enabled: nextStock > 0 ? item.enabled : false, // Disable if out of stock
+            enabled: nextStock > 0 ? item.enabled : false,
           },
         });
       }
 
-      // Add to inventory (ItemPurchase)
+      // Add to inventory
       const existingPurchase = await kernel.db.itemPurchase.findFirst({
         where: { itemId: item.id, guildId, userId: interaction.user.id }
       });
@@ -182,12 +253,7 @@ export default class ShopCommand implements ICommand {
         });
       } else {
         await kernel.db.itemPurchase.create({
-          data: {
-            itemId: item.id,
-            guildId,
-            userId: interaction.user.id,
-            quantity: 1
-          }
+          data: { itemId: item.id, guildId, userId: interaction.user.id, quantity: 1 }
         });
       }
 
@@ -199,7 +265,7 @@ export default class ShopCommand implements ICommand {
         await discordMember?.roles.add(item.roleId).catch(() => {});
       }
 
-      // Draw custom canvas card for Shop Buy
+      // Draw buy card
       const buffer = await CardRenderer.drawShopBuyCard(
         interaction.user.username,
         interaction.user.displayAvatarURL({ extension: 'png' }),
@@ -207,7 +273,8 @@ export default class ShopCommand implements ICommand {
         item.price,
         newBalance,
         item.type === 'ROLE',
-        roleName
+        roleName,
+        item.currency
       );
       const attachment = new AttachmentBuilder(buffer, { name: 'buy_success.png' });
 
@@ -222,6 +289,8 @@ export default class ShopCommand implements ICommand {
       const name = interaction.options.getString('name', true);
       const price = interaction.options.getInteger('price', true);
       const type = interaction.options.getString('type', true);
+      const category = interaction.options.getString('category') ?? 'GENERAL';
+      const currency = interaction.options.getString('currency') ?? 'ECO';
       const role = interaction.options.getRole('role');
       const description = interaction.options.getString('description');
       const stockOpt = interaction.options.getInteger('stock');
@@ -232,7 +301,7 @@ export default class ShopCommand implements ICommand {
       if (existing) return void interaction.reply({ content: `❌ Sản phẩm **${name}** đã tồn tại.`, ephemeral: true });
 
       await kernel.db.shopItem.create({
-        data: { guildId, name, price, type, roleId: role?.id ?? null, description: description ?? null, stock, imageUrl },
+        data: { guildId, name, price, type, category, currency, roleId: role?.id ?? null, description: description ?? null, stock, imageUrl },
       });
 
       const embed = new EmbedBuilder()
@@ -240,9 +309,9 @@ export default class ShopCommand implements ICommand {
         .setTitle('✅ Thêm Sản Phẩm Thành Công')
         .addFields(
           { name: '🏷️ Tên', value: name, inline: true },
-          { name: '💰 Giá', value: `${price.toLocaleString()} coins`, inline: true },
+          { name: '💰 Giá', value: `${price.toLocaleString()} ${currency === 'VND' ? 'VNĐ' : 'coins'}`, inline: true },
+          { name: '🗂️ Danh mục', value: category === 'RING' ? 'Nhẫn cưới' : 'Vật phẩm', inline: true },
           { name: '📦 Kho hàng', value: stock ? `${stock}` : '∞ Không giới hạn', inline: true },
-          { name: '🎁 Loại', value: type === 'ROLE' && role ? `Role ${role}` : 'Custom', inline: true },
         );
 
       if (imageUrl) embed.setImage(imageUrl);

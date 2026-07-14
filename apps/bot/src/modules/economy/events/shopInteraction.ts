@@ -1,10 +1,19 @@
 import {
   Interaction, StringSelectMenuInteraction,
   ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder,
+  StringSelectMenuOptionBuilder,
 } from 'discord.js';
 import { IEvent } from '../../../core/interfaces/IEvent';
 import { Kernel } from '../../../core/Kernel';
 import { CardRenderer } from '../../../core/ui/CardRenderer';
+import { createModuleLogger } from '../../../core/logger/Logger';
+
+const log = createModuleLogger('economy');
+
+const TYPE_EMOJI: Record<string, string> = {
+  ROLE: '🎭',
+  CUSTOM: '🎁',
+};
 
 export default class ShopInteractionEvent implements IEvent<'interactionCreate'> {
   name = 'interactionCreate' as const;
@@ -21,6 +30,66 @@ export default class ShopInteractionEvent implements IEvent<'interactionCreate'>
       await this.handleBuyConfirm(kernel, interaction);
       return;
     }
+
+    // ─── Button: shop category filter ─────────────────────────────────────
+    if (interaction.isButton() && interaction.customId.startsWith('shop:category:')) {
+      await this.handleCategorySelect(kernel, interaction);
+      return;
+    }
+  }
+
+  // ── Handle Category Select button ──────────────────────────────────────
+  private async handleCategorySelect(kernel: Kernel, interaction: any): Promise<void> {
+    await interaction.deferUpdate();
+    const category = interaction.customId.replace('shop:category:', '');
+    const guildId = interaction.guildId!;
+
+    const items = await kernel.db.shopItem.findMany({
+      where: { guildId, enabled: true, category },
+      orderBy: { price: 'asc' },
+    });
+
+    if (!items.length) {
+      return void interaction.followUp({
+        content: `🏪 Cửa hàng danh mục **${category === 'RING' ? 'Nhẫn Cưới' : 'Vật Phẩm'}** đang trống.`,
+        ephemeral: true
+      });
+    }
+
+    const buffer = await CardRenderer.drawShopListCard(interaction.guild!.name, items);
+    const attachment = new AttachmentBuilder(buffer, { name: 'shop.png' });
+
+    const selectOptions = items.slice(0, 25).map((item, idx) =>
+      new StringSelectMenuOptionBuilder()
+        .setLabel(`#${idx + 1} ${item.name}`)
+        .setDescription(`💰 ${item.price.toLocaleString()} ${item.currency === 'VND' ? 'VNĐ' : 'coins'}`)
+        .setEmoji(TYPE_EMOJI[item.type] ?? '🛒')
+        .setValue(`shop_item:${item.id}`)
+    );
+
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId('shop:detail')
+      .setPlaceholder('🔍 Chọn sản phẩm để xem chi tiết...')
+      .addOptions(selectOptions);
+
+    const rowMenu = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
+
+    const btnGeneral = new ButtonBuilder()
+      .setCustomId('shop:category:GENERAL')
+      .setLabel('📦 Vật Phẩm')
+      .setStyle(category === 'GENERAL' ? ButtonStyle.Primary : ButtonStyle.Secondary);
+
+    const btnRing = new ButtonBuilder()
+      .setCustomId('shop:category:RING')
+      .setLabel('💍 Nhẫn Cưới')
+      .setStyle(category === 'RING' ? ButtonStyle.Primary : ButtonStyle.Secondary);
+
+    const rowButtons = new ActionRowBuilder<ButtonBuilder>().addComponents(btnGeneral, btnRing);
+
+    await interaction.editReply({
+      files: [attachment],
+      components: [rowMenu, rowButtons]
+    });
   }
 
   // ── Show item detail card using Canvas ─────────────────────────────────
@@ -50,7 +119,8 @@ export default class ShopInteractionEvent implements IEvent<'interactionCreate'>
       stockText,
       rewardText,
       item.description,
-      item.imageUrl
+      item.imageUrl,
+      item.currency
     );
     const attachment = new AttachmentBuilder(buffer, { name: 'detail.png' });
 
@@ -87,19 +157,26 @@ export default class ShopInteractionEvent implements IEvent<'interactionCreate'>
       where: { guildId_userId: { guildId, userId: interaction.user.id } },
     });
 
-    if (!member || member.balance < item.price) {
+    const isVnd = item.currency === 'VND';
+    const balanceValue = isVnd ? (member?.vnd ?? 0) : (member?.balance ?? 0);
+
+    if (!member || balanceValue < item.price) {
+      const balanceStr = isVnd ? `${balanceValue.toLocaleString()} VNĐ` : `${balanceValue.toLocaleString()} coins`;
+      const requiredStr = isVnd ? `${item.price.toLocaleString()} VNĐ` : `${item.price.toLocaleString()} coins`;
       return void interaction.editReply(
-        `❌ Không đủ tiền! Cần **${item.price.toLocaleString()} coins**, bạn có **${member?.balance.toLocaleString() ?? 0} coins**.`
+        `❌ Không đủ tiền! Cần **${requiredStr}**, bạn có **${balanceStr}**.`
       );
     }
 
-    const newBalance = member.balance - item.price;
+    const newBalance = balanceValue - item.price;
 
-    // Deduct balance
+    // Deduct balance (VND or Eco coins)
     await kernel.db.guildMember.update({
       where: { guildId_userId: { guildId, userId: interaction.user.id } },
-      data: { balance: { decrement: item.price } },
+      data: isVnd ? { vnd: { decrement: item.price } } : { balance: { decrement: item.price } },
     });
+
+    log.info(`[SHOP_BUY] User ${interaction.user.id} (${interaction.user.username}) bought item ${item.name} (${item.id}) via button confirm in guild ${guildId}. Price: ${item.price} ${item.currency}. Pre-balance: ${balanceValue}, Post-balance: ${newBalance}`, { module: 'economy' });
 
     // Reduce stock and disable if out of stock
     if (item.stock !== null) {
@@ -108,7 +185,7 @@ export default class ShopInteractionEvent implements IEvent<'interactionCreate'>
         where: { id: item.id },
         data: {
           stock: nextStock,
-          enabled: nextStock > 0 ? item.enabled : false, // Disable if out of stock
+          enabled: nextStock > 0 ? item.enabled : false,
         },
       });
     }
@@ -148,7 +225,8 @@ export default class ShopInteractionEvent implements IEvent<'interactionCreate'>
       item.price,
       newBalance,
       item.type === 'ROLE',
-      roleName
+      roleName,
+      item.currency
     );
     const attachment = new AttachmentBuilder(buffer, { name: 'buy_success.png' });
 

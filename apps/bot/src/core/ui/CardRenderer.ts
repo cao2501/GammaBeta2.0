@@ -743,7 +743,7 @@ export class CardRenderer {
    */
   public static async drawShopListCard(
     guildName: string,
-    items: Array<{ name: string; price: number; type: string; stock: number | null; description: string | null }>
+    items: Array<{ name: string; price: number; type: string; stock: number | null; description: string | null; currency?: string }>
   ): Promise<Buffer> {
     const width = 800;
     const height = Math.max(300, 160 + items.length * 85);
@@ -802,7 +802,8 @@ export class CardRenderer {
       ctx.fillStyle = Theme.colors.accentGold;
       ctx.font = 'bold 18px "Segoe UI", "Segoe UI Emoji", "Segoe UI Symbol", Arial, sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(`${item.price.toLocaleString()} coins`, itemX + itemW - 25, listY + 30);
+      const currencyStr = item.currency === 'VND' ? 'VNĐ' : 'coins';
+      ctx.fillText(`${item.price.toLocaleString()} ${currencyStr}`, itemX + itemW - 25, listY + 30);
 
       // Stock Info (Right aligned)
       ctx.fillStyle = Theme.colors.textSecondary;
@@ -845,7 +846,8 @@ export class CardRenderer {
     price: number,
     remainingBalance: number,
     isRole: boolean,
-    roleName?: string
+    roleName?: string,
+    currency?: string
   ): Promise<Buffer> {
     const width = 650;
     const height = 300;
@@ -886,16 +888,17 @@ export class CardRenderer {
     ctx.fillText(displayItemName, 60, boxY + 70);
     ctx.fillStyle = Theme.colors.textMuted;
     ctx.font = 'normal 12px "Segoe UI", "Segoe UI Emoji", "Segoe UI Symbol", Arial, sans-serif';
-    ctx.fillText(`Giá: ${price.toLocaleString()} coins`, 60, boxY + 95);
+    const currencyStr = currency === 'VND' ? 'VNĐ' : 'coins';
+    ctx.fillText(`Giá: ${price.toLocaleString()} ${currencyStr}`, 60, boxY + 95);
 
     // Wallet Balance Info
     CanvasRenderer.drawRoundedRect(ctx, 340, boxY, boxW, boxH, Theme.borderRadius.medium, Theme.colors.card);
     ctx.fillStyle = Theme.colors.textSecondary;
     ctx.font = 'bold 14px "Segoe UI", "Segoe UI Emoji", "Segoe UI Symbol", Arial, sans-serif';
-    ctx.fillText('💵 Còn lại (Wallet)', 360, boxY + 35);
+    ctx.fillText(currency === 'VND' ? '💳 Số dư VNĐ' : '💵 Còn lại (Wallet)', 360, boxY + 35);
     ctx.fillStyle = Theme.colors.accentGold;
     ctx.font = 'bold 22px "Segoe UI", "Segoe UI Emoji", "Segoe UI Symbol", Arial, sans-serif';
-    ctx.fillText(`${remainingBalance.toLocaleString()} coins`, 360, boxY + 70);
+    ctx.fillText(`${remainingBalance.toLocaleString()} ${currencyStr}`, 360, boxY + 70);
 
     // Reward Details (Top Right)
     ctx.fillStyle = Theme.colors.textSecondary;
@@ -1020,7 +1023,8 @@ export class CardRenderer {
     stockText: string,
     rewardText: string,
     description: string | null,
-    imageUrl: string | null
+    imageUrl: string | null,
+    currency?: string
   ): Promise<Buffer> {
     const width = 700;
     const height = 400;
@@ -1065,7 +1069,8 @@ export class CardRenderer {
     ctx.fillText('💰 GIÁ BÁN', 55, infoY + 23);
     ctx.fillStyle = Theme.colors.accentGold;
     ctx.font = 'bold 16px "Segoe UI", "Segoe UI Emoji", "Segoe UI Symbol", Arial, sans-serif';
-    ctx.fillText(`${price.toLocaleString()} coins`, 55, infoY + 48);
+    const currencyStr = currency === 'VND' ? 'VNĐ' : 'coins';
+    ctx.fillText(`${price.toLocaleString()} ${currencyStr}`, 55, infoY + 48);
 
     // Box 2: Stock
     CanvasRenderer.drawRoundedRect(ctx, 230, infoY, 180, 65, Theme.borderRadius.small, Theme.colors.card);

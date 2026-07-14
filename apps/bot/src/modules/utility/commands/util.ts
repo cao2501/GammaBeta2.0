@@ -48,22 +48,20 @@ export default class UtilityCommand implements ICommand {
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
 
-      const [totalMsg, msg1d, msg7d, msg30d] = await Promise.all([
+      const [totalMsg, msg1d, msg7d, msg30d, totalVoiceMin, voice1d, voice7d, voice30d] = await Promise.all([
         kernel.db.analyticsEvent.count({ where: { guildId: interaction.guildId!, userId: target.id, type: 'MESSAGE' } }),
         kernel.db.analyticsEvent.count({ where: { guildId: interaction.guildId!, userId: target.id, type: 'MESSAGE', createdAt: { gte: oneDayAgo } } }),
         kernel.db.analyticsEvent.count({ where: { guildId: interaction.guildId!, userId: target.id, type: 'MESSAGE', createdAt: { gte: sevenDaysAgo } } }),
         kernel.db.analyticsEvent.count({ where: { guildId: interaction.guildId!, userId: target.id, type: 'MESSAGE', createdAt: { gte: thirtyDaysAgo } } }),
+        kernel.db.analyticsEvent.count({ where: { guildId: interaction.guildId!, userId: target.id, type: 'VOICE_TICK' } }),
+        kernel.db.analyticsEvent.count({ where: { guildId: interaction.guildId!, userId: target.id, type: 'VOICE_TICK', createdAt: { gte: oneDayAgo } } }),
+        kernel.db.analyticsEvent.count({ where: { guildId: interaction.guildId!, userId: target.id, type: 'VOICE_TICK', createdAt: { gte: sevenDaysAgo } } }),
+        kernel.db.analyticsEvent.count({ where: { guildId: interaction.guildId!, userId: target.id, type: 'VOICE_TICK', createdAt: { gte: thirtyDaysAgo } } }),
       ]);
 
       const dbMember = await kernel.db.guildMember.findUnique({
         where: { guildId_userId: { guildId: interaction.guildId!, userId: target.id } }
       });
-
-      // 3. Compute stats
-      const totalVoiceMin = Math.floor((dbMember?.voiceXp ?? 0) / 3);
-      const voice1d = Math.floor(totalVoiceMin * 0.05);
-      const voice7d = Math.floor(totalVoiceMin * 0.35);
-      const voice30d = Math.floor(totalVoiceMin * 0.95);
 
       const chatRank = dbMember ? (await kernel.db.guildMember.count({
         where: { guildId: interaction.guildId!, xp: { gt: dbMember.xp } }
@@ -121,7 +119,7 @@ export default class UtilityCommand implements ICommand {
       let topVoiceCount = 0;
 
       const voiceEvents = await kernel.db.analyticsEvent.findMany({
-        where: { guildId: interaction.guildId!, userId: target.id, type: 'VOICE_JOIN' },
+        where: { guildId: interaction.guildId!, userId: target.id, type: 'VOICE_TICK' },
         select: { data: true }
       });
 

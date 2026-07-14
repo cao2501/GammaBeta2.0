@@ -36,7 +36,20 @@ export default class PrefixHandlerEvent implements IEvent<'messageCreate'> {
       const aliasKey = tokens[0].toLowerCase();
       const args = tokens.slice(1);
 
-      const mapping = aliases[aliasKey];
+      let mapping = aliases[aliasKey];
+      if (!mapping) {
+        const fallbacks: Record<string, AliasMapping> = {
+          marry: args.length > 0 ? { command: 'marry', subcommand: 'proposal' } : { command: 'marry', subcommand: 'profile' },
+          mry: args.length > 0 ? { command: 'marry', subcommand: 'proposal' } : { command: 'marry', subcommand: 'profile' },
+          divorce: { command: 'marry', subcommand: 'divorce' },
+          thumbnail: { command: 'marry', subcommand: 'thumbnail' },
+          image: { command: 'marry', subcommand: 'image' },
+          caption: { command: 'marry', subcommand: 'caption' },
+          color: { command: 'marry', subcommand: 'color' },
+          luv: { command: 'marry', subcommand: 'luv' },
+        };
+        mapping = fallbacks[aliasKey];
+      }
       if (!mapping) return; // Unknown alias — silently ignore
 
       const command = kernel.client.commands.get(mapping.command);
