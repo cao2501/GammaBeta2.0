@@ -92,6 +92,7 @@ export default class ShopCommand implements ICommand {
         { name: '💍 Nhẫn cưới', value: 'RING' },
       ))
       .addIntegerOption(o => o.setName('id').setDescription('ID sản phẩm (Số thứ tự hiển thị trong /shop list)').setRequired(true).setMinValue(1))
+      .addStringOption(o => o.setName('name').setDescription('Tên mới cho sản phẩm'))
       .addIntegerOption(o => o.setName('price').setDescription('Giá mới'))
       .addIntegerOption(o => o.setName('stock').setDescription('Số lượng mới (0 = không giới hạn)'))
       .addBooleanOption(o => o.setName('enabled').setDescription('Bật/Tắt'))
@@ -361,6 +362,7 @@ export default class ShopCommand implements ICommand {
         return void interaction.editReply({ content: `❌ Không tìm thấy sản phẩm số **#${String(itemIndex).padStart(2, '0')}** trong danh mục **${category === 'RING' ? 'Nhẫn cưới' : 'Vật phẩm'}**.` });
       }
 
+      const newName = interaction.options.getString('name');
       const price = interaction.options.getInteger('price');
       const stockOpt = interaction.options.getInteger('stock');
       const enabled = interaction.options.getBoolean('enabled');
@@ -371,6 +373,19 @@ export default class ShopCommand implements ICommand {
       const emoji = interaction.options.getString('emoji');
 
       const updates: any = {};
+      if (newName) {
+        const existing = await kernel.db.shopItem.findFirst({
+          where: {
+            guildId,
+            name: newName,
+            NOT: { id: item.id }
+          }
+        });
+        if (existing) {
+          return void interaction.editReply({ content: `❌ Tên sản phẩm **${newName}** đã tồn tại ở sản phẩm khác.` });
+        }
+        updates.name = newName;
+      }
       if (price !== null) updates.price = price;
       if (stockOpt !== null) updates.stock = stockOpt > 0 ? stockOpt : null;
       if (enabled !== null) updates.enabled = enabled;
@@ -379,7 +394,7 @@ export default class ShopCommand implements ICommand {
       if (emoji !== null) updates.emoji = emoji === 'none' ? null : emoji;
 
       await kernel.db.shopItem.update({ where: { id: item.id }, data: updates });
-      await interaction.editReply({ content: `✅ Đã cập nhật sản phẩm **${item.name}** (ID: #${String(itemIndex).padStart(2, '0')}).` });
+      await interaction.editReply({ content: `✅ Đã cập nhật sản phẩm **${updates.name || item.name}** (ID: #${String(itemIndex).padStart(2, '0')}).` });
 
     // ─── GIVE ────────────────────────────────────────────────────────────────
     } else if (sub === 'give') {
