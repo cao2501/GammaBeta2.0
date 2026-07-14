@@ -1419,6 +1419,154 @@ export class CardRenderer {
     return canvas.toBuffer('image/png');
   }
 
+  /**
+   * 14. Draw Deposit Invoice Card with Embedded QR Code
+   */
+  public static async drawDepositCard(
+    avatarUrl: string,
+    username: string,
+    code: string,
+    amount: number,
+    qrBuffer: Buffer
+  ): Promise<Buffer> {
+    const width = 800;
+    const height = 450;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    // 1. Draw premium dark banking theme background
+    const grad = ctx.createLinearGradient(0, 0, width, height);
+    grad.addColorStop(0, '#0a1523');
+    grad.addColorStop(0.5, '#0e2035');
+    grad.addColorStop(1, '#081220');
+    CanvasRenderer.drawRoundedRect(ctx, 0, 0, width, height, Theme.borderRadius.large, grad);
+
+    // Subtle diagonal geometric patterns
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.015)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < width + height; i += 30) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i - height, height);
+      ctx.stroke();
+    }
+
+    // 2. Draw card borders and highlight
+    CanvasRenderer.drawRoundedRect(ctx, 0, 0, width, height, Theme.borderRadius.large, undefined, 'rgba(246, 196, 83, 0.12)', 1.5);
+    CanvasRenderer.drawRoundedRect(ctx, 0, 0, 15, height, 6, Theme.colors.accentGold);
+
+    // 3. Bill / Invoice Header
+    ctx.fillStyle = Theme.colors.accentGold;
+    ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('HÓA ĐƠN NẠP TIỀN TỰ ĐỘNG (KINI BANKING)', 45, 45);
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.font = 'normal 12px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('Hệ thống xử lý tự động qua SePay Webhooks', 45, 65);
+
+    // Draw user avatar and info in header
+    try {
+      await CanvasRenderer.drawCircularAvatar(ctx, avatarUrl, width - 80, 45, 20, 'rgba(255,255,255,0.2)', 1.5);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(`@${username}`, width - 110, 50);
+    } catch {}
+
+    ctx.textAlign = 'left'; // reset text alignment
+
+    // 4. Left Panel: Invoice Details Box
+    const detailX = 45;
+    const detailY = 95;
+    const detailW = 440;
+    const detailH = 310;
+    const detailBg = ctx.createLinearGradient(detailX, detailY, detailX, detailY + detailH);
+    detailBg.addColorStop(0, 'rgba(255, 255, 255, 0.02)');
+    detailBg.addColorStop(1, 'rgba(255, 255, 255, 0.04)');
+    CanvasRenderer.drawRoundedRect(ctx, detailX, detailY, detailW, detailH, 12, detailBg, 'rgba(255, 255, 255, 0.05)', 1);
+
+    // Detail lines
+    const startTextX = detailX + 25;
+    let textY = detailY + 40;
+
+    // Amount Line
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = 'normal 13px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('SỐ TIỀN CẦN CHUYỂN', startTextX, textY);
+    
+    ctx.fillStyle = Theme.colors.accentGold;
+    ctx.font = 'bold 26px "Outfit", "Segoe UI", sans-serif';
+    const formattedAmount = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    ctx.fillText(formattedAmount, startTextX, textY + 30);
+    
+    textY += 65;
+
+    // Transfer Memo (CRITICAL!)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = 'normal 13px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('NỘI DUNG CHUYỂN KHOẢN (BẮT BUỘC CHÍNH XÁC)', startTextX, textY);
+
+    // Draw high contrast box for memo code
+    const codeBoxY = textY + 10;
+    const codeBoxW = 200;
+    const codeBoxH = 45;
+    CanvasRenderer.drawRoundedRect(ctx, startTextX, codeBoxY, codeBoxW, codeBoxH, 8, 'rgba(246, 196, 83, 0.08)', 'rgba(246, 196, 83, 0.3)', 1);
+    
+    ctx.fillStyle = Theme.colors.accentGold;
+    ctx.font = 'bold 20px "Outfit", "Segoe UI", sans-serif';
+    ctx.fillText(code, startTextX + 18, codeBoxY + 30);
+
+    textY += 80;
+
+    // Bank account info
+    const bankId = process.env.BANK_ID ?? 'VietinBank';
+    const bankAccount = process.env.BANK_ACCOUNT ?? '1234567890';
+    const accountName = process.env.BANK_ACCOUNT_NAME ?? 'ADMIN';
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = 'normal 13px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('THÔNG TIN NGÂN HÀNG THỤ HƯỞNG', startTextX, textY);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+    ctx.fillText(`${bankId} - STK: ${bankAccount}`, startTextX, textY + 22);
+    ctx.fillText(`TÊN: ${accountName.toUpperCase()}`, startTextX, textY + 42);
+
+    textY += 75;
+
+    // Note / warning
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.font = 'italic 11px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('(*) Giao dịch được xử lý tự động sau 10-30s kể từ khi chuyển khoản.', startTextX, textY);
+
+    // 5. Right Panel: QR Code Box
+    const qrPanelX = 515;
+    const qrPanelY = 95;
+    const qrSize = 240;
+    
+    // Draw white background card for QR Code
+    CanvasRenderer.drawRoundedRect(ctx, qrPanelX, qrPanelY, qrSize, qrSize + 30, 16, '#ffffff');
+
+    // Draw the QR Code image buffer inside
+    try {
+      const qrImg = await loadImage(qrBuffer);
+      ctx.drawImage(qrImg, qrPanelX + 15, qrPanelY + 15, qrSize - 30, qrSize - 30);
+    } catch (err) {
+      console.error('Failed to render QR Code image inside drawDepositCard:', err);
+      // Fallback text if QR load fails
+      ctx.fillStyle = '#000000';
+      ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+      ctx.fillText('Không thể load QR', qrPanelX + 60, qrPanelY + 120);
+    }
+
+    // Label under QR Code
+    ctx.fillStyle = '#081220';
+    ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+    ctx.fillText('QUÉT MÃ QR ĐỂ CHUYỂN KHOẢN', qrPanelX + 35, qrPanelY + qrSize + 15);
+
+    return canvas.toBuffer('image/png');
+  }
+
   private static wrapText(
     ctx: CanvasRenderingContext2D,
     text: string,

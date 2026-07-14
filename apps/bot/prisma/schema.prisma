@@ -691,5 +691,32 @@ model StarboardEntry {
   @@index([guildId])
 }
 
+// ============================================================
+// MODULE: VND DEPOSITS / PAYMENTS
+// ============================================================
+model VndTransaction {
+  id              String   @id // SePay transaction ID
+  guildId         String
+  userId          String
+  amount          Int
+  code            String?  // Pay code
+  referenceCode   String?  // Reference bank transaction code
+  content         String   // Full transfer message
+  gateway         String   // Bank name
+  transactionDate DateTime
+  createdAt       DateTime @default(now())
+
+  @@index([guildId])
+  @@index([userId])
+}
+
+model VndDepositRequest {
+  code      String   @id // Unique short deposit code, e.g. "KN1024"
+  guildId   String
+  userId    String
+  amount    Int
+  createdAt DateTime @default(now())
+}
+
 
 

@@ -22,6 +22,12 @@ export default class VndCommand implements ICommand {
         .addUserOption(opt => opt.setName('member').setDescription('Thành viên nhận chuyển khoản').setRequired(true))
         .addIntegerOption(opt => opt.setName('amount').setDescription('Số tiền VND muốn chuyển (tối thiểu 1.000 ₫)').setRequired(true).setMinValue(1000))
     )
+    .addSubcommand(sub =>
+      sub
+        .setName('deposit')
+        .setDescription('📥 Nạp tiền VND tự động bằng chuyển khoản ngân hàng (VietQR)')
+        .addIntegerOption(opt => opt.setName('amount').setDescription('Số tiền VND muốn nạp (tối thiểu 1.000 ₫)').setRequired(true).setMinValue(1000))
+    )
     .addSubcommandGroup(group =>
       group
         .setName('admin')
@@ -224,6 +230,86 @@ export default class VndCommand implements ICommand {
         content: `💸 **Chuyển khoản thành công!** <@${interaction.user.id}> ➔ <@${receiver.id}>`,
         files: [attachment]
       });
+      return;
+    }
+
+    // 4. /vnd deposit
+    if (subcommand === 'deposit') {
+      const amount = interaction.options.getInteger('amount', true);
+      await ensureMember(guildId, interaction.user.id);
+
+      // Generate a unique 4-digit code suffix e.g., KN3819
+      let depositCode = '';
+      let attempts = 0;
+      while (attempts < 10) {
+        const rand = Math.floor(1000 + Math.random() * 9000); // 1000 - 9999
+        const codeCandidate = `KN${rand}`;
+        const existing = await kernel.db.vndDepositRequest.findUnique({
+          where: { code: codeCandidate }
+        });
+        if (!existing) {
+          depositCode = codeCandidate;
+          break;
+        }
+        attempts++;
+      }
+      
+      if (!depositCode) {
+        depositCode = `KN${Date.now().toString().slice(-4)}`;
+      }
+
+      // Save the deposit request in database
+      await kernel.db.vndDepositRequest.create({
+        data: {
+          code: depositCode,
+          guildId,
+          userId: interaction.user.id,
+          amount
+        }
+      });
+
+      // Fetch dynamic VietQR code image
+      const bankId = process.env.BANK_ID ?? 'MBBank';
+      const bankAccount = process.env.BANK_ACCOUNT ?? '1234567890';
+      const accountName = encodeURIComponent(process.env.BANK_ACCOUNT_NAME ?? 'ADMIN');
+      const qrUrl = `https://img.vietqr.io/image/${bankId}-${bankAccount}-compact2.png?amount=${amount}&addInfo=${depositCode}&accountName=${accountName}`;
+
+      try {
+        const res = await fetch(qrUrl);
+        if (!res.ok) throw new Error('Failed to fetch VietQR image');
+        const arrayBuffer = await res.arrayBuffer();
+        const qrBuffer = Buffer.from(arrayBuffer);
+
+        // Render Canvas Card
+        const buffer = await CardRenderer.drawDepositCard(
+          interaction.user.displayAvatarURL({ extension: 'png' }),
+          interaction.user.username,
+          depositCode,
+          amount,
+          qrBuffer
+        );
+
+        const attachment = new AttachmentBuilder(buffer, { name: 'deposit-invoice.png' });
+
+        await interaction.editReply({
+          content: `📥 **Yêu cầu nạp tiền của** <@${interaction.user.id}> đã được khởi tạo!`,
+          files: [attachment]
+        });
+      } catch (err) {
+        kernel.logger.error('Failed to generate deposit card:', err);
+        const errorEmbed = UIBuilders.createErrorEmbed(
+          'Lỗi Hệ Thống',
+          '❌ Không thể kết nối tới VietQR API để tạo mã QR nạp tiền. Vui lòng thử lại sau.'
+        );
+        const buffer = await UIBuilders.convertToCanvasCard(
+          errorEmbed,
+          interaction.user.displayAvatarURL({ extension: 'png' }),
+          interaction.user.username,
+          interaction.guild?.name
+        );
+        const attachment = new AttachmentBuilder(buffer, { name: 'error.png' });
+        await interaction.editReply({ files: [attachment] });
+      }
     }
   }
 }

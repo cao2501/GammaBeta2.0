@@ -7,10 +7,11 @@ import helmet from 'helmet';
 import path from 'path';
 import Transport from 'winston-transport';
 import multer from 'multer';
-import { ChannelType, PermissionFlagsBits } from 'discord.js';
+import { ChannelType, PermissionFlagsBits, AttachmentBuilder } from 'discord.js';
 import { logger } from '../../../core/logger/Logger';
 import { Kernel } from '../../../core/Kernel';
 import { ensureGuild, getModuleConfig, setModuleConfig } from '../../../database/helpers';
+import { UIBuilders } from '../../../core/ui/UIBuilders';
 
 // Winston transport for streaming logs via socket.io
 class SocketIoTransport extends Transport {
@@ -428,6 +429,115 @@ export class ExpressServer {
         await setModuleConfig(guildId, 'command_permissions', { permissions }, true);
         res.json({ success: true });
       } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    // POST: SePay automated banking webhook endpoint
+    this.app.post('/api/sepay/webhook', async (req, res) => {
+      // 1. Authentication Check (optional API Key verification)
+      const authHeader = req.headers.authorization;
+      const apiKey = process.env.SEPAY_API_KEY;
+      if (apiKey && authHeader !== `Apikey ${apiKey}`) {
+        logger.warn('[SePay Webhook] Unauthorized attempt with invalid API Key');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const { id, transferType, transferAmount, content, gateway, transactionDate, referenceCode } = req.body;
+
+      // SePay requires a JSON body {"success": true} response to acknowledge receipt
+      if (transferType !== 'in') {
+        return res.json({ success: true });
+      }
+
+      // Safe parse variables
+      const txId = String(id);
+      const amount = Number(transferAmount);
+
+      try {
+        // 2. Anti-replay/double spending check
+        const existingTx = await this.kernel.db.vndTransaction.findUnique({
+          where: { id: txId }
+        });
+
+        if (existingTx) {
+          logger.info(`[SePay Webhook] Transaction ID ${txId} already processed, skipping.`);
+          return res.json({ success: true });
+        }
+
+        // 3. Match transfer content/memo for deposit code (e.g. KN1024 or KN 1024)
+        const cleanContent = String(content).toUpperCase().replace(/\s/g, '');
+        const match = cleanContent.match(/KN\d{4}/);
+        
+        if (!match) {
+          logger.warn(`[SePay Webhook] No valid deposit code found in content: "${content}"`);
+          return res.json({ success: true }); // Still return success: true to avoid retries
+        }
+
+        const depositCode = match[0]; // e.g. "KN1024"
+
+        // Find deposit request in database
+        const depositRequest = await this.kernel.db.vndDepositRequest.findUnique({
+          where: { code: depositCode }
+        });
+
+        if (!depositRequest) {
+          logger.warn(`[SePay Webhook] Deposit request not found or expired for code: "${depositCode}"`);
+          return res.json({ success: true });
+        }
+
+        const { guildId, userId } = depositRequest;
+
+        // 4. Update user's VND balance atomically inside a transaction
+        const transactionDateParsed = transactionDate ? new Date(transactionDate) : new Date();
+
+        await this.kernel.db.$transaction([
+          // Increment member balance
+          this.kernel.db.guildMember.update({
+            where: { guildId_userId: { guildId, userId } },
+            data: { vnd: { increment: amount } }
+          }),
+          // Save transaction log
+          this.kernel.db.vndTransaction.create({
+            data: {
+              id: txId,
+              guildId,
+              userId,
+              amount,
+              code: depositCode,
+              referenceCode: referenceCode ? String(referenceCode) : null,
+              content: String(content),
+              gateway: String(gateway),
+              transactionDate: transactionDateParsed
+            }
+          }),
+          // Delete processed deposit request
+          this.kernel.db.vndDepositRequest.delete({
+            where: { code: depositCode }
+          })
+        ]);
+
+        logger.info(`[SePay Webhook] Successfully processed deposit of ${amount.toLocaleString('vi-VN')} VND for User ${userId} in Guild ${guildId}`);
+
+        // 5. Send confirmation Direct Message (DM) to the user
+        try {
+          const user = await this.kernel.client.users.fetch(userId);
+          if (user) {
+            const embed = UIBuilders.createSuccessEmbed(
+              'Giao Dịch Nạp Tiền Thành Công',
+              `💳 Hệ thống đã ghi nhận khoản nạp **${amount.toLocaleString('vi-VN')} ₫** thành công qua cổng **SePay (${gateway})**.\n\nMã giao dịch: \`${txId}\`\nNội dung chuyển: \`${content}\`\nSố dư đã được cập nhật!`
+            );
+            const buffer = await UIBuilders.convertToCanvasCard(embed, user.displayAvatarURL({ extension: 'png' }), user.username, 'KINI BANKING');
+            const file = new AttachmentBuilder(buffer, { name: 'deposit-success.png' });
+            await user.send({ content: `🔔 **Thông báo nạp tiền thành công!**`, files: [file] }).catch(() => {});
+          }
+        } catch (dmErr) {
+          logger.error(`[SePay Webhook] Failed to send DM notification to User ${userId}:`, dmErr);
+        }
+
+        res.json({ success: true });
+      } catch (err: any) {
+        logger.error('[SePay Webhook] Failed to process webhook transaction:', err);
         res.status(500).json({ error: err.message });
       }
     });
