@@ -264,6 +264,7 @@ export default class VndCommand implements ICommand {
           code: depositCode,
           guildId,
           userId: interaction.user.id,
+          channelId: interaction.channelId,
           amount
         }
       });

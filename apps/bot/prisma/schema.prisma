@@ -714,6 +714,7 @@ model VndDepositRequest {
   code      String   @id // Unique short deposit code, e.g. "KN1024"
   guildId   String
   userId    String
+  channelId String?  // ID kênh tạo lệnh nạp tiền
   amount    Int
   createdAt DateTime @default(now())
 }

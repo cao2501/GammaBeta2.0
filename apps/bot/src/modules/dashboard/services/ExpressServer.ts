@@ -535,6 +535,29 @@ export class ExpressServer {
           logger.error(`[SePay Webhook] Failed to send DM notification to User ${userId}:`, dmErr);
         }
 
+        // 6. Send public notification to the channel where the request was generated
+        const channelId = depositRequest.channelId;
+        if (channelId) {
+          try {
+            const channel = await this.kernel.client.channels.fetch(channelId).catch(() => null);
+            if (channel && channel.isTextBased()) {
+              const user = await this.kernel.client.users.fetch(userId).catch(() => null);
+              const username = user ? user.username : 'Thành viên';
+              const avatar = user ? user.displayAvatarURL({ extension: 'png' }) : '';
+              
+              const publicEmbed = UIBuilders.createSuccessEmbed(
+                'Giao Dịch Nạp Tiền Thành Công',
+                `🎉 Chúc mừng <@${userId}> đã nạp **${amount.toLocaleString('vi-VN')} ₫** thành công qua cổng **SePay (${gateway})**!\n\nMã giao dịch: \`${txId}\`\nSố dư VND của bạn đã được cập nhật.`
+              );
+              const buffer = await UIBuilders.convertToCanvasCard(publicEmbed, avatar, username, 'KINI BANKING');
+              const file = new AttachmentBuilder(buffer, { name: 'deposit-success.png' });
+              await (channel as any).send({ content: `🎉 **Nạp tiền thành công!** <@${userId}>`, files: [file] }).catch(() => {});
+            }
+          } catch (chErr) {
+            logger.error(`[SePay Webhook] Failed to send public channel notification to Channel ${channelId}:`, chErr);
+          }
+        }
+
         res.json({ success: true });
       } catch (err: any) {
         logger.error('[SePay Webhook] Failed to process webhook transaction:', err);
