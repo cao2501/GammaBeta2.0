@@ -60,18 +60,32 @@ export class BotClient extends Client {
     try {
       logger.info(`Deploying ${commandData.length} slash commands...`);
       
-      // Deploy globally (can take up to 1-2 hours to propagate on Discord client)
-      await rest.put(Routes.applicationCommands(clientId), { body: commandData });
-      logger.info(`✅ Deployed ${commandData.length} commands globally`);
+      if (process.env.NODE_ENV === 'development') {
+        // Clear global commands to prevent duplicates in dev guild
+        await rest.put(Routes.applicationCommands(clientId), { body: [] });
+        logger.info('Cleared global commands (Dev mode)');
 
-      // Deploy instantly to each guild the bot is in for instant updates/testing
-      const guilds = Array.from(this.guilds.cache.values());
-      for (const guild of guilds) {
-        try {
-          await rest.put(Routes.applicationGuildCommands(clientId, guild.id), { body: commandData });
-          logger.info(`✅ Deployed ${commandData.length} commands instantly to guild: ${guild.name} (${guild.id})`);
-        } catch (err) {
-          logger.warn(`Failed to deploy commands instantly to guild ${guild.name} (${guild.id}):`, err);
+        // Deploy instantly to each guild the bot is in
+        const guilds = Array.from(this.guilds.cache.values());
+        for (const guild of guilds) {
+          try {
+            await rest.put(Routes.applicationGuildCommands(clientId, guild.id), { body: commandData });
+            logger.info(`✅ Deployed ${commandData.length} commands instantly to guild: ${guild.name} (${guild.id})`);
+          } catch (err) {
+            logger.warn(`Failed to deploy commands instantly to guild ${guild.name} (${guild.id}):`, err);
+          }
+        }
+      } else {
+        // Deploy globally for production
+        await rest.put(Routes.applicationCommands(clientId), { body: commandData });
+        logger.info(`✅ Deployed ${commandData.length} commands globally`);
+        
+        // Also clear guild-level commands so they don't override/duplicate in production
+        const guilds = Array.from(this.guilds.cache.values());
+        for (const guild of guilds) {
+          try {
+            await rest.put(Routes.applicationGuildCommands(clientId, guild.id), { body: [] });
+          } catch {}
         }
       }
     } catch (error) {
