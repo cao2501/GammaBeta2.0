@@ -370,6 +370,7 @@ model Poll {
   multiChoice Boolean  @default(false)
   status      String   @default("ACTIVE") // ACTIVE, ENDED
   endsAt      DateTime?
+  correctAnswer String?
   createdAt   DateTime @default(now())
 
   guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)

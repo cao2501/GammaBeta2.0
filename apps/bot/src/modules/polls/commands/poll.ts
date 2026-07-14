@@ -17,6 +17,7 @@ export default class PollCommand implements ICommand {
       .addBooleanOption(o => o.setName('multi').setDescription('Nhiều lựa chọn?'))
       .addStringOption(o => o.setName('duration').setDescription('Thời gian tự kết thúc (vd: 1h)'))
       .addStringOption(o => o.setName('ping').setDescription('Ping vai trò, mọi người hoặc thành viên (vd: @everyone, @Role)'))
+      .addStringOption(o => o.setName('answer').setDescription('Đáp án đúng (sẽ hiển thị khi kết thúc)'))
     )
     .addSubcommand(s => s.setName('end').setDescription('Kết thúc poll').addStringOption(o => o.setName('id').setDescription('Poll ID').setRequired(true)));
 
@@ -32,6 +33,7 @@ export default class PollCommand implements ICommand {
       const durationStr = interaction.options.getString('duration');
       const endsAt = durationStr ? new Date(Date.now() + ms(durationStr)) : null;
       const ping = interaction.options.getString('ping');
+      const answer = interaction.options.getString('answer');
 
       await ensureGuild(interaction.guildId!, interaction.guild!.name);
 
@@ -56,7 +58,7 @@ export default class PollCommand implements ICommand {
       const msg = await interaction.editReply({ content: ping || undefined, embeds: [embed], components: rows });
 
       const poll = await kernel.db.poll.create({
-        data: { guildId: interaction.guildId!, channelId: interaction.channelId, messageId: (msg as any).id, creatorId: interaction.user.id, question, options: JSON.stringify(optionsRaw), anonymous, multiChoice: multi, endsAt },
+        data: { guildId: interaction.guildId!, channelId: interaction.channelId, messageId: (msg as any).id, creatorId: interaction.user.id, question, options: JSON.stringify(optionsRaw), anonymous, multiChoice: multi, endsAt, correctAnswer: answer },
       });
 
       // Update button IDs and embed footer with poll ID
@@ -89,10 +91,15 @@ export default class PollCommand implements ICommand {
           const total = Object.values(votes).reduce((a, b) => a + b.length, 0);
           const results = options.map((opt, i) => `${opt}: **${votes[i]?.length ?? 0}** phiếu (${total ? Math.floor((votes[i]?.length ?? 0) / total * 100) : 0}%)`).join('\n');
 
+          let finalDesc = results;
+          if (poll.correctAnswer) {
+            finalDesc += `\n\n🎯 **Đáp án đúng:** ${poll.correctAnswer}`;
+          }
+
           const embed = new EmbedBuilder()
             .setTitle(`📊 Kết quả Poll: ${poll.question}`)
             .setColor(0x3498db)
-            .setDescription(results)
+            .setDescription(finalDesc)
             .setFooter({ text: `ID: ${poll.id.slice(-6)} | Đã kết thúc` });
 
           // Disable components

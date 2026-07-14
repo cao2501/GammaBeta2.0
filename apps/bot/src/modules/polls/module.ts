@@ -109,10 +109,15 @@ export default class PollsModule implements IModule {
           const total = Object.values(votes).reduce((a, b) => a + b.length, 0);
           const results = options.map((opt, i) => `${opt}: **${votes[i]?.length ?? 0}** phiếu (${total ? Math.floor((votes[i]?.length ?? 0) / total * 100) : 0}%)`).join('\n');
 
+          let finalDesc = results;
+          if (currentPoll.correctAnswer) {
+            finalDesc += `\n\n🎯 **Đáp án đúng:** ${currentPoll.correctAnswer}`;
+          }
+
           const embed = new EmbedBuilder()
             .setTitle(`📊 Kết quả Poll: ${currentPoll.question}`)
             .setColor(0x3498db)
-            .setDescription(results)
+            .setDescription(finalDesc)
             .setFooter({ text: `ID: ${currentPoll.id.slice(-6)} | Đã kết thúc` });
 
           // Disable components
