@@ -113,22 +113,35 @@ export default class MarryCommand implements ICommand {
         return void interaction.editReply(`❌ **${target.username}** đã kết hôn với người khác rồi!`);
       }
 
-      // Find the ring in the database shop list (matching name or ID)
-      const ringItem = await kernel.db.shopItem.findFirst({
-        where: {
-          guildId,
-          category: 'RING',
-          enabled: true,
-          OR: [
-            { id: ringNameOrId },
-            { name: { contains: ringNameOrId } }
-          ]
-        }
-      });
+      // Find the ring in the database shop list (matching index, database ID, or name)
+      let ringItem: any = null;
+
+      const parsedId = parseInt(ringNameOrId, 10);
+      if (!isNaN(parsedId) && parsedId > 0) {
+        const rings = await kernel.db.shopItem.findMany({
+          where: { guildId, category: 'RING', enabled: true },
+          orderBy: { price: 'asc' }
+        });
+        ringItem = rings[parsedId - 1];
+      }
+
+      if (!ringItem) {
+        ringItem = await kernel.db.shopItem.findFirst({
+          where: {
+            guildId,
+            category: 'RING',
+            enabled: true,
+            OR: [
+              { id: ringNameOrId },
+              { name: { contains: ringNameOrId } }
+            ]
+          }
+        });
+      }
 
       if (!ringItem) {
         return void interaction.editReply(
-          `❌ Không tìm thấy nhẫn có tên/ID là **"${ringNameOrId}"** trong cửa hàng nhẫn (\`/shop list category:RING\`).`
+          `❌ Không tìm thấy nhẫn có tên/ID là **"${ringNameOrId}"** trong cửa hàng nhẫn (\`/shop list category: RING\`).`
         );
       }
 
