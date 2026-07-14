@@ -72,6 +72,7 @@ export default class PollCommand implements ICommand {
         updatedRows.push(row);
       });
       await (msg as any).edit({ content: ping || undefined, embeds: [updatedEmbed], components: updatedRows });
+      kernel.eventBus.emit('poll:start', poll);
     } else if (sub === 'end') {
       const id = interaction.options.getString('id', true);
       const poll = await kernel.db.poll.findFirst({ where: { guildId: interaction.guildId!, id: { endsWith: id }, status: 'ACTIVE' } });

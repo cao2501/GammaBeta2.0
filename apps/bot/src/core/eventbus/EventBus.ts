@@ -44,6 +44,7 @@ export interface BotEvents {
   'guild:setup': { guildId: string };
 
   // Custom events
+  'poll:start': any;
   'ai:clear_history': { userId: string };
   'antinuke:lockdown': { guildId: string; reason: string; perpetratorId: string };
 }
