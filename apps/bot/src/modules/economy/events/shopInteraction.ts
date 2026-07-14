@@ -88,6 +88,7 @@ export default class ShopInteractionEvent implements IEvent<'interactionCreate'>
 
     await interaction.editReply({
       files: [attachment],
+      attachments: [],
       components: [rowMenu, rowButtons]
     });
   }
