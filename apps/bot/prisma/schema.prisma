@@ -71,9 +71,9 @@ model GuildMember {
   level      Int      @default(0)
   prestige   Int      @default(0)
   voiceXp    Int      @default(0)
-  balance    Int      @default(0)
-  bank       Int      @default(0)
-  vnd        Int      @default(0)
+  balance    Float    @default(0)
+  bank       Float    @default(0)
+  vnd        Float    @default(0)
   reputation Int      @default(0)
   nickname   String?
   joinedAt   DateTime @default(now())
@@ -287,7 +287,7 @@ model ShopItem {
   guildId     String
   name        String
   description String?
-  price       Int
+  price       Float
   roleId      String?
   type        String   @default("ROLE") // ROLE, CUSTOM
   category    String   @default("GENERAL") // GENERAL, RING
@@ -701,7 +701,7 @@ model VndTransaction {
   id              String   @id // SePay transaction ID
   guildId         String
   userId          String
-  amount          Int
+  amount          Float
   code            String?  // Pay code
   referenceCode   String?  // Reference bank transaction code
   content         String   // Full transfer message
@@ -718,7 +718,7 @@ model VndDepositRequest {
   guildId   String
   userId    String
   channelId String?  // ID kênh tạo lệnh nạp tiền
-  amount    Int
+  amount    Float
   createdAt DateTime @default(now())
 }
 
