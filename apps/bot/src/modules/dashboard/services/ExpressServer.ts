@@ -134,49 +134,9 @@ export class ExpressServer {
 		const DASHBOARD_URL = process.env.DASHBOARD_URL || `http://localhost:${this.port}`;
 		const REDIRECT_URI = `${DASHBOARD_URL}/auth/callback`;
 
-		// Developer bypass login
-		this.app.post('/auth/bypass', (req, res) => {
-			const isConfigured = CLIENT_ID && CLIENT_SECRET;
-			// Allow bypass always if not configured, or if specifically requested in dev mode
-			const sessionUser = {
-				id: this.kernel.ownerIds[0] || '123456789',
-				username: 'DeveloperAdmin',
-				avatar: '',
-				isBypass: true,
-			};
-
-			(req.session as any).user = sessionUser;
-
-			// Simulate guilds containing admin permissions
-			(req.session as any).guilds = this.kernel.client.guilds.cache.map((g) => ({
-				id: g.id,
-				name: g.name,
-				permissions: '8', // Admin
-				owner: true,
-			}));
-
-			res.json({ success: true });
-		});
-
 		this.app.get('/auth/login', (req, res) => {
 			if (!CLIENT_ID || !CLIENT_SECRET) {
-				// OAuth2 not configured: Auto-bypass and redirect to dashboard
-				const sessionUser = {
-					id: this.kernel.ownerIds[0] || '123456789',
-					username: 'DeveloperAdmin',
-					avatar: '',
-					isBypass: true,
-				};
-
-				(req.session as any).user = sessionUser;
-				(req.session as any).guilds = this.kernel.client.guilds.cache.map((g) => ({
-					id: g.id,
-					name: g.name,
-					permissions: '8', // Admin
-					owner: true,
-				}));
-
-				return res.redirect('/dashboard');
+				return res.status(500).send('OAuth2 credentials are not configured in the bot .env file. Please specify CLIENT_ID and CLIENT_SECRET.');
 			}
 			const url = `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=identify%20guilds`;
 			res.redirect(url);

@@ -33,10 +33,6 @@
           </svg>
           Đăng nhập với Discord
         </a>
-
-        <button id="btn-bypass" class="btn btn-secondary">
-          ⚡ Bypass Login (Developer Mode)
-        </button>
       </div>
     </section>
 
@@ -60,18 +56,6 @@
     </section>
   </main>
 
-  <script>
-    document.getElementById('btn-bypass').addEventListener('click', async () => {
-      try {
-        const res = await fetch('/auth/bypass', { method: 'POST' });
-        const data = await res.json();
-        if (data.success) {
-          window.location.href = '/dashboard';
-        }
-      } catch (err) {
-        alert('Không thể kết nối tới server.');
-      }
-    });
-  </script>
+
 </body>
 </html>
