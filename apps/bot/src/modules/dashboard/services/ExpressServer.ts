@@ -407,10 +407,34 @@ export class ExpressServer {
 			}
 		});
 
-		// GET: get all slash commands
+		// GET: get all slash commands (including subcommands and groups)
 		this.app.get('/api/guilds/:id/commands', requireAuth, (req, res) => {
-			const commands = Array.from(this.kernel.client.commands.keys()).sort();
-			res.json(commands);
+			const commandsList: string[] = [];
+			for (const [cmdName, cmd] of this.kernel.client.commands) {
+				commandsList.push(cmdName);
+				
+				try {
+					const json = (cmd.data as any).toJSON();
+					if (Array.isArray(json.options)) {
+						for (const opt of json.options) {
+							// Subcommand (Type 1)
+							if (opt.type === 1) {
+								commandsList.push(`${cmdName} ${opt.name}`);
+							}
+							// Subcommand Group (Type 2)
+							if (opt.type === 2 && Array.isArray(opt.options)) {
+								for (const sub of opt.options) {
+									if (sub.type === 1) {
+										commandsList.push(`${cmdName} ${opt.name} ${sub.name}`);
+									}
+								}
+							}
+						}
+					}
+				} catch {}
+			}
+			commandsList.sort();
+			res.json(commandsList);
 		});
 
 		// GET: get permission rules

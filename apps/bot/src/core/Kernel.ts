@@ -99,7 +99,22 @@ export class Kernel {
       if (!isOwner && !isAdmin && interaction.guildId) {
         try {
           const { config } = await getModuleConfig<any>(interaction.guildId, 'command_permissions');
-          const rules = config.permissions?.[interaction.commandName];
+          
+          let rules = null;
+          if (interaction.isChatInputCommand()) {
+            const group = interaction.options.getSubcommandGroup(false);
+            const sub = interaction.options.getSubcommand(false);
+            if (group && sub) {
+              rules = config.permissions?.[`${interaction.commandName} ${group} ${sub}`];
+            } else if (sub) {
+              rules = config.permissions?.[`${interaction.commandName} ${sub}`];
+            }
+          }
+
+          if (!rules) {
+            rules = config.permissions?.[interaction.commandName];
+          }
+
           if (rules) {
             const member = interaction.member as GuildMember;
             const memberRoles = member.roles.cache.map(r => r.id);

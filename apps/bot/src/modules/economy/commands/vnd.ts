@@ -295,7 +295,7 @@ export default class VndCommand implements ICommand {
 			const attachment = new AttachmentBuilder(buffer, { name: 'success.png' });
 
 			await interaction.editReply({
-				content: `💸 **Chuyển khoản thành công!** <@${interaction.user.username}> ➔ <@${receiver.username}>`,
+				content: `💸 **Chuyển khoản thành công!** <@${interaction.user.id}> ➔ <@${receiver.id}>`,
 				files: [attachment],
 			});
 			return;

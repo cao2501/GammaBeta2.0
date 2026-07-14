@@ -197,6 +197,7 @@ export class MessageInteractionAdapter {
     if (options.content) out.content = options.content;
     if (options.embeds?.length) out.embeds = options.embeds;
     if (options.components?.length) out.components = options.components;
+    if (options.files?.length) out.files = options.files;
     // Strip ephemeral flag — text messages have no ephemeral
     return out;
   }
