@@ -57,7 +57,6 @@ class MusicManager {
   }
 
   private async ensureSpotifyAuth(): Promise<boolean> {
-    if (this.spotifyAuthorized) return true;
     const client_id = process.env.SPOTIFY_CLIENT_ID;
     const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 
@@ -66,17 +65,30 @@ class MusicManager {
     }
 
     try {
-      await play.setToken({
-        spotify: {
-          client_id,
-          client_secret
-        } as any
-      });
-      this.spotifyAuthorized = true;
-      logger.info('Spotify client credentials successfully initialized for playback.');
+      let needsToken = !this.spotifyAuthorized;
+      if (this.spotifyAuthorized) {
+        try {
+          if (play.is_expired()) {
+            needsToken = true;
+          }
+        } catch {
+          needsToken = true;
+        }
+      }
+
+      if (needsToken) {
+        await play.setToken({
+          spotify: {
+            client_id,
+            client_secret
+          } as any
+        });
+        this.spotifyAuthorized = true;
+        logger.info('Spotify client credentials successfully initialized/refreshed for playback.');
+      }
       return true;
     } catch (err: any) {
-      logger.error('Failed to initialize Spotify credentials:', err);
+      logger.error('Failed to initialize/refresh Spotify credentials:', err);
       return false;
     }
   }
