@@ -49,8 +49,17 @@ export default class ShopCommand implements ICommand {
   data = new SlashCommandBuilder()
     .setName('shop')
     .setDescription('🏪 Cửa Hàng Server')
-    .addSubcommand(s => s.setName('list').setDescription('📋 Xem tất cả sản phẩm trong cửa hàng'))
+    .addSubcommand(s => s.setName('list').setDescription('📋 Xem tất cả sản phẩm trong cửa hàng')
+      .addStringOption(o => o.setName('category').setDescription('Danh mục cửa hàng (mặc định: GENERAL)').addChoices(
+        { name: '📦 Vật phẩm', value: 'GENERAL' },
+        { name: '💍 Nhẫn cưới', value: 'RING' },
+      ))
+    )
     .addSubcommand(s => s.setName('buy').setDescription('💳 Mua sản phẩm — dùng /shop list để xem ID')
+      .addStringOption(o => o.setName('category').setDescription('Danh mục cửa hàng').setRequired(true).addChoices(
+        { name: '📦 Vật phẩm', value: 'GENERAL' },
+        { name: '💍 Nhẫn cưới', value: 'RING' },
+      ))
       .addIntegerOption(o => o.setName('id').setDescription('ID sản phẩm (số thứ tự hiển thị trong /shop list)').setRequired(true).setMinValue(1))
     )
     .addSubcommand(s => s.setName('add').setDescription('[Admin] Thêm sản phẩm')
@@ -92,41 +101,44 @@ export default class ShopCommand implements ICommand {
 
   async execute(interaction: any, kernel: Kernel): Promise<void> {
     const sub = interaction.options.getSubcommand();
+    const isEphemeral = sub !== 'list';
+    await interaction.deferReply({ ephemeral: isEphemeral });
+
     const guildId = interaction.guildId!;
     await ensureGuild(guildId, interaction.guild!.name);
     await seedDefaultRings(kernel, guildId);
 
     // ─── LIST ────────────────────────────────────────────────────────────────
     if (sub === 'list') {
-      await interaction.deferReply();
+      const category = interaction.options.getString('category') ?? 'GENERAL';
 
       const items = await kernel.db.shopItem.findMany({
-        where: { guildId, enabled: true },
-        orderBy: [{ category: 'asc' }, { price: 'asc' }],
+        where: { guildId, enabled: true, category },
+        orderBy: { price: 'asc' },
       });
 
       if (!items.length) {
         return void interaction.editReply({
-          content: '🏪 Cửa hàng hiện đang trống.',
+          content: `🏪 Cửa hàng danh mục **${category === 'RING' ? 'Nhẫn Cưới' : 'Vật Phẩm'}** hiện đang trống.`,
         });
       }
 
+      const categoryTitle = category === 'RING' ? '💍 Cửa Hàng Nhẫn Cưới' : '📦 Cửa Hàng Vật Phẩm';
       const embed = new EmbedBuilder()
         .setColor(0xff7bb5)
-        .setTitle(`🏪 Cửa Hàng Server — ${interaction.guild!.name}`)
-        .setDescription('Chọn sản phẩm dưới thanh menu để xem chi tiết và mua hoặc dùng `/shop buy <id>`!');
+        .setTitle(`${categoryTitle} — ${interaction.guild!.name}`)
+        .setDescription('Chọn sản phẩm dưới thanh menu để xem chi tiết và mua hoặc dùng `/shop buy <category> <id>`!');
 
       const listLines = items.map((item, idx) => {
+        const idStr = String(idx + 1).padStart(2, '0');
         const emoji = item.emoji || TYPE_EMOJI[item.type] || '🛒';
         const priceStr = `${item.price.toLocaleString()} ${item.currency === 'VND' ? 'VNĐ' : 'coins'}`;
-        const catStr = item.category === 'RING' ? '💍 Nhẫn cưới' : '📦 Vật phẩm';
         const stockStr = item.stock !== null ? `${item.stock}` : 'Vô hạn';
-        return `**#${idx + 1}** ${emoji} **${item.name}**\n` +
-               `• Giá: **${priceStr}** | Cửa hàng: *${catStr}* | Kho: *${stockStr}*\n` +
+        return `**#${idStr}** ${emoji} **${item.name}**\n` +
+               `• Giá: **${priceStr}** | Kho: *${stockStr}*\n` +
                `• Giới thiệu: *${item.description || 'Không có mô tả.'}*\n`;
       });
 
-      // Split into fields if description gets too long
       const chunks = [];
       let currentChunk = '';
       for (const line of listLines) {
@@ -140,13 +152,14 @@ export default class ShopCommand implements ICommand {
       if (currentChunk) chunks.push(currentChunk);
 
       chunks.forEach((chunk, i) => {
-        embed.addFields({ name: i === 0 ? 'Danh Sách Vật Phẩm' : 'Tiếp theo', value: chunk });
+        embed.addFields({ name: i === 0 ? 'Danh Sách Sản Phẩm' : 'Tiếp theo', value: chunk });
       });
 
       // Select menu
       const selectOptions = items.slice(0, 25).map((item, idx) => {
+        const idStr = String(idx + 1).padStart(2, '0');
         const option = new StringSelectMenuOptionBuilder()
-          .setLabel(`#${idx + 1} ${item.name}`)
+          .setLabel(`#${idStr} ${item.name}`)
           .setDescription(`💰 ${item.price.toLocaleString()} ${item.currency === 'VND' ? 'VNĐ' : 'coins'}`)
           .setValue(`shop_item:${item.id}`);
 
@@ -173,18 +186,18 @@ export default class ShopCommand implements ICommand {
 
     // ─── BUY ─────────────────────────────────────────────────────────────────
     } else if (sub === 'buy') {
-      await interaction.deferReply({ ephemeral: true });
+      const category = interaction.options.getString('category', true);
       const itemIndex = interaction.options.getInteger('id', true); // 1-based
 
       const allItems = await kernel.db.shopItem.findMany({
-        where: { guildId, enabled: true },
-        orderBy: [{ category: 'asc' }, { price: 'asc' }],
+        where: { guildId, enabled: true, category },
+        orderBy: { price: 'asc' },
       });
 
       const item = allItems[itemIndex - 1];
       if (!item) {
         return void interaction.editReply(
-          `❌ Không tìm thấy sản phẩm **#${itemIndex}**. Dùng \`/shop list\` để xem danh sách.`
+          `❌ Không tìm thấy sản phẩm **#${String(itemIndex).padStart(2, '0')}** trong danh mục này. Dùng \`/shop list\` để xem danh sách.`
         );
       }
 
@@ -272,7 +285,7 @@ export default class ShopCommand implements ICommand {
     // ─── ADD ─────────────────────────────────────────────────────────────────
     } else if (sub === 'add') {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-        return void interaction.reply({ content: '❌ Cần quyền Manage Server.', ephemeral: true });
+        return void interaction.editReply({ content: '❌ Cần quyền Manage Server.' });
       }
       const name = interaction.options.getString('name', true);
       const price = interaction.options.getInteger('price', true);
@@ -286,7 +299,7 @@ export default class ShopCommand implements ICommand {
       const imageUrl = interaction.options.getString('image');
 
       const existing = await kernel.db.shopItem.findFirst({ where: { guildId, name } });
-      if (existing) return void interaction.reply({ content: `❌ Sản phẩm **${name}** đã tồn tại.`, ephemeral: true });
+      if (existing) return void interaction.editReply({ content: `❌ Sản phẩm **${name}** đã tồn tại.` });
 
       await kernel.db.shopItem.create({
         data: { guildId, name, price, type, category, currency, roleId: role?.id ?? null, description: description ?? null, stock, imageUrl },
@@ -304,23 +317,23 @@ export default class ShopCommand implements ICommand {
 
       if (imageUrl) embed.setImage(imageUrl);
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed] });
 
     // ─── REMOVE ──────────────────────────────────────────────────────────────
     } else if (sub === 'remove') {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-        return void interaction.reply({ content: '❌ Cần quyền Manage Server.', ephemeral: true });
+        return void interaction.editReply({ content: '❌ Cần quyền Manage Server.' });
       }
       const name = interaction.options.getString('name', true);
       const item = await kernel.db.shopItem.findFirst({ where: { guildId, name } });
-      if (!item) return void interaction.reply({ content: `❌ Sản phẩm **${name}** không tồn tại.`, ephemeral: true });
+      if (!item) return void interaction.editReply({ content: `❌ Sản phẩm **${name}** không tồn tại.` });
       await kernel.db.shopItem.delete({ where: { id: item.id } });
-      await interaction.reply({ content: `✅ Đã xóa sản phẩm **${name}**.`, ephemeral: true });
+      await interaction.editReply({ content: `✅ Đã xóa sản phẩm **${name}**.` });
 
     // ─── EDIT ────────────────────────────────────────────────────────────────
     } else if (sub === 'edit') {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-        return void interaction.reply({ content: '❌ Cần quyền Manage Server.', ephemeral: true });
+        return void interaction.editReply({ content: '❌ Cần quyền Manage Server.' });
       }
       const category = interaction.options.getString('category', true);
       const itemIndex = interaction.options.getInteger('id', true); // 1-based
@@ -332,7 +345,7 @@ export default class ShopCommand implements ICommand {
 
       const item = itemsInCat[itemIndex - 1];
       if (!item) {
-        return void interaction.reply({ content: `❌ Không tìm thấy sản phẩm số **#${itemIndex}** trong danh mục **${category === 'RING' ? 'Nhẫn cưới' : 'Vật phẩm'}**.`, ephemeral: true });
+        return void interaction.editReply({ content: `❌ Không tìm thấy sản phẩm số **#${String(itemIndex).padStart(2, '0')}** trong danh mục **${category === 'RING' ? 'Nhẫn cưới' : 'Vật phẩm'}**.` });
       }
 
       const price = interaction.options.getInteger('price');
@@ -351,7 +364,7 @@ export default class ShopCommand implements ICommand {
       if (emoji !== null) updates.emoji = emoji === 'none' ? null : emoji;
 
       await kernel.db.shopItem.update({ where: { id: item.id }, data: updates });
-      await interaction.reply({ content: `✅ Đã cập nhật sản phẩm **${item.name}** (ID: #${itemIndex}).`, ephemeral: true });
+      await interaction.editReply({ content: `✅ Đã cập nhật sản phẩm **${item.name}** (ID: #${String(itemIndex).padStart(2, '0')}).` });
     }
   }
 }

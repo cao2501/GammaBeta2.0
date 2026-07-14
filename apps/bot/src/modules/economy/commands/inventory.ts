@@ -16,6 +16,8 @@ export default class InventoryCommand implements ICommand {
   async execute(interaction: ChatInputCommandInteraction, kernel: Kernel): Promise<void> {
     const guildId = interaction.guildId!;
     await ensureGuild(guildId, interaction.guild!.name);
+    
+    // Defer immediately!
     await interaction.deferReply();
 
     const purchases = await kernel.db.itemPurchase.findMany({
@@ -23,20 +25,25 @@ export default class InventoryCommand implements ICommand {
       include: { item: true }
     });
 
-    const allItems = await kernel.db.shopItem.findMany({
-      where: { guildId },
-      orderBy: [{ category: 'asc' }, { price: 'asc' }],
+    const generalShopItems = await kernel.db.shopItem.findMany({
+      where: { guildId, category: 'GENERAL', enabled: true },
+      orderBy: { price: 'asc' },
     });
+
+    const ringShopItems = await kernel.db.shopItem.findMany({
+      where: { guildId, category: 'RING', enabled: true },
+      orderBy: { price: 'asc' },
+    });
+
+    const formatLine = (p: any, shopItems: any[]) => {
+      const idx = shopItems.findIndex(x => x.id === p.item.id);
+      const displayId = idx !== -1 ? String(idx + 1).padStart(2, '0') : 'N/A';
+      const emoji = p.item.emoji || TYPE_EMOJI[p.item.type] || '🛒';
+      return `${emoji} **${p.item.name}** (x${p.quantity}) - ID sản phẩm: \`#${displayId}\``;
+    };
 
     const generalPurchases = purchases.filter(p => p.item.category === 'GENERAL');
     const ringPurchases = purchases.filter(p => p.item.category === 'RING');
-
-    const formatLine = (p: any) => {
-      const displayId = allItems.findIndex(x => x.id === p.item.id) + 1;
-      const emoji = p.item.emoji || TYPE_EMOJI[p.item.type] || '🛒';
-      const idStr = displayId > 0 ? `#${displayId}` : 'N/A';
-      return `${emoji} **${p.item.name}** (x${p.quantity}) - ID sản phẩm: \`${idStr}\``;
-    };
 
     const embed = new EmbedBuilder()
       .setColor(0xff7bb5)
@@ -44,12 +51,12 @@ export default class InventoryCommand implements ICommand {
       .setThumbnail(interaction.user.displayAvatarURL())
       .setTimestamp();
 
-    const generalLines = generalPurchases.map(formatLine).join('\n');
-    const ringLines = ringPurchases.map(formatLine).join('\n');
+    const generalLines = generalPurchases.map(p => formatLine(p, generalShopItems)).join('\n');
+    const ringLines = ringPurchases.map(p => formatLine(p, ringShopItems)).join('\n');
 
     embed.addFields(
-      { name: '📦 Vật Phẩm Sở Hữu', value: generalLines || '*Trống*', inline: false },
-      { name: '💍 Nhẫn Cưới Sở Hữu', value: ringLines || '*Trống*', inline: false }
+      { name: '📦 Kho Đồ Vật Phẩm', value: generalLines || '*Trống*', inline: false },
+      { name: '💍 Kho Đồ Nhẫn Cưới', value: ringLines || '*Trống*', inline: false }
     );
 
     await interaction.editReply({ embeds: [embed] });
