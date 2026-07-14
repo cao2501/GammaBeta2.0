@@ -9,6 +9,7 @@ RUN npm run build
 
 # Stage 2: Production
 FROM node:22-alpine
+RUN apk add --no-cache fontconfig ttf-dejavu font-noto font-noto-cjk font-noto-emoji
 WORKDIR /usr/src/app
 COPY package*.json ./
 RUN npm ci --only=production
