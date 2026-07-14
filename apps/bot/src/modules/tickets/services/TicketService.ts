@@ -192,7 +192,7 @@ export class TicketService {
 
     // Fetch messages to generate logs and extract files
     let messages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
-    const sortedMessages = messages ? Array.from(messages.values()).reverse() : [];
+    const sortedMessages = messages ? Array.from(messages.values()).reverse() as any[] : [];
 
     // 1. Build Text Transcript
     let transcriptText = `==================================================\n`;
@@ -211,7 +211,7 @@ export class TicketService {
         transcriptText += `${m.content}\n`;
       }
       if (m.attachments.size > 0) {
-        transcriptText += `[Đính kèm: ${Array.from(m.attachments.values()).map(a => a.name).join(', ')}]\n`;
+        transcriptText += `[Đính kèm: ${Array.from(m.attachments.values()).map((a: any) => a.name).join(', ')}]\n`;
       }
       transcriptText += `\n`;
     }

@@ -218,7 +218,7 @@ export default class UtilityCommand implements ICommand {
         .setColor(role.color || 0x5865f2)
         .addFields(
           { name: '🆔 ID', value: role.id, inline: true },
-          { name: '🎨 Màu', value: role.hexColor, inline: true },
+          { name: '🎨 Màu', value: (role as any).hexColor || 'N/A', inline: true },
           { name: '👥 Thành viên', value: `${(role as any).members?.size ?? '?'}`, inline: true },
           { name: '📌 Vị trí', value: `${role.position}`, inline: true },
           { name: '📢 Mentionable', value: role.mentionable ? 'Có' : 'Không', inline: true },

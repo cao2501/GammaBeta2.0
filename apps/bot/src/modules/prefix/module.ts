@@ -21,7 +21,7 @@ export default class PrefixModule implements IModule {
     // Register the messageCreate event handler
     const existing = kernel.client.events.get('messageCreate') ?? [];
     if (!existing.some(e => e.constructor.name === 'PrefixHandlerEvent')) {
-      existing.push(new PrefixHandlerEvent());
+      existing.push(new PrefixHandlerEvent() as any);
       kernel.client.events.set('messageCreate', existing);
     }
 

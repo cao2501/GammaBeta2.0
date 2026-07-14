@@ -1,4 +1,4 @@
-import { Message, OldMessage, EmbedBuilder } from 'discord.js';
+import { Message, EmbedBuilder } from 'discord.js';
 import { IEvent } from '../../../core/interfaces/IEvent';
 import { Kernel } from '../../../core/Kernel';
 

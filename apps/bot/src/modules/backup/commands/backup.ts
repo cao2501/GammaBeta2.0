@@ -41,22 +41,24 @@ export default class BackupCommand implements ICommand {
 
       // Collect channels
       const channels = guild.channels.cache.map(c => {
-        const overwrites = c.permissionOverwrites.cache.map(o => ({
-          id: o.id,
-          type: o.type, // 0 for role, 1 for member
-          allow: o.allow.bitfield.toString(),
-          deny: o.deny.bitfield.toString(),
-        }));
+        const overwrites = ('permissionOverwrites' in c && c.permissionOverwrites)
+          ? (c.permissionOverwrites as any).cache.map((o: any) => ({
+              id: o.id,
+              type: o.type, // 0 for role, 1 for member
+              allow: o.allow.bitfield.toString(),
+              deny: o.deny.bitfield.toString(),
+            }))
+          : [];
 
         return {
           id: c.id,
           name: c.name,
           type: c.type,
           parentId: c.parentId,
-          position: c.position,
-          topic: 'topic' in c ? c.topic : null,
-          nsfw: 'nsfw' in c ? c.nsfw : false,
-          rateLimitPerUser: 'rateLimitPerUser' in c ? c.rateLimitPerUser : 0,
+          position: 'position' in c ? (c as any).position : 0,
+          topic: 'topic' in c ? (c as any).topic : null,
+          nsfw: 'nsfw' in c ? (c as any).nsfw : false,
+          rateLimitPerUser: 'rateLimitPerUser' in c ? (c as any).rateLimitPerUser : 0,
           permissionOverwrites: overwrites
         };
       });

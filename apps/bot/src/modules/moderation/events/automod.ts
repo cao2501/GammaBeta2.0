@@ -90,7 +90,7 @@ export default class AutomodMessageEvent implements IEvent<'messageCreate'> {
       action: 'DELETE',
     });
 
-    const warn = await message.channel.send({
+    const warn = await (message.channel as any).send({
       embeds: [new EmbedBuilder()
         .setColor(0xe74c3c)
         .setDescription(`⚠️ ${message.author} vi phạm AutoMod: **${type}** — ${reason}`)

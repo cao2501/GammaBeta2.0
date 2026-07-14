@@ -41,6 +41,10 @@ export interface BotEvents {
 
   // Guild events
   'guild:setup': { guildId: string };
+
+  // Custom events
+  'ai:clear_history': { userId: string };
+  'antinuke:lockdown': { guildId: string; reason: string; perpetratorId: string };
 }
 
 export class EventBus extends EventEmitter3<BotEvents> {

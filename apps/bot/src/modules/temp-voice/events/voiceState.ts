@@ -35,7 +35,7 @@ export default class VoiceStateUpdateEvent implements IEvent<'voiceStateUpdate'>
       const temp = await kernel.db.tempChannel.findUnique({ where: { channelId: oldState.channelId } });
       if (temp) {
         const ch = oldState.guild.channels.cache.get(oldState.channelId);
-        if (ch && 'members' in ch && ch.members.size === 0) {
+        if (ch && 'members' in ch && (ch.members as any).size === 0) {
           await ch.delete();
           await kernel.db.tempChannel.delete({ where: { channelId: oldState.channelId } });
         }

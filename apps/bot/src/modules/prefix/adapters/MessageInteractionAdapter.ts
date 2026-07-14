@@ -183,7 +183,7 @@ export class MessageInteractionAdapter {
     if (this.sentReply) {
       await this.sentReply.edit(payload).catch(() => {});
     } else {
-      this.sentReply = await this.message.channel.send(payload).catch(() => null);
+      this.sentReply = await (this.message.channel as any).send(payload).catch(() => null);
     }
     return this.sentReply;
   }
@@ -194,7 +194,7 @@ export class MessageInteractionAdapter {
 
   async followUp(options: any): Promise<any> {
     const payload = this.buildPayload(options);
-    return await this.message.channel.send(payload).catch(() => null);
+    return await (this.message.channel as any).send(payload).catch(() => null);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

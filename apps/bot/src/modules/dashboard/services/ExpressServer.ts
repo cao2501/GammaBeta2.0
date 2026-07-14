@@ -299,7 +299,7 @@ export class ExpressServer {
 
 		// Get modules status and configs for a specific guild
 		this.app.get('/api/guilds/:id/modules', requireAuth, async (req, res) => {
-			const guildId = req.params.id;
+			const guildId = req.params.id as string;
 			const guild = this.kernel.client.guilds.cache.get(guildId);
 			if (!guild) return res.status(404).json({ error: 'Guild not found' });
 
@@ -328,7 +328,8 @@ export class ExpressServer {
 
 		// Toggle module status
 		this.app.post('/api/guilds/:id/modules/:name/toggle', requireAuth, async (req, res) => {
-			const { id: guildId, name: moduleName } = req.params;
+			const guildId = req.params.id as string;
+			const moduleName = req.params.name as string;
 			const { enabled } = req.body;
 
 			if (typeof enabled !== 'boolean') {
@@ -346,7 +347,8 @@ export class ExpressServer {
 
 		// Save module config
 		this.app.post('/api/guilds/:id/modules/:name/config', requireAuth, async (req, res) => {
-			const { id: guildId, name: moduleName } = req.params;
+			const guildId = req.params.id as string;
+			const moduleName = req.params.name as string;
 			const { config } = req.body;
 
 			if (!config || typeof config !== 'object') {
@@ -369,7 +371,7 @@ export class ExpressServer {
 				return res.status(403).json({ error: 'Forbidden: Owner only' });
 			}
 
-			const moduleName = req.params.name;
+			const moduleName = req.params.name as string;
 			const success = await this.kernel.loader.reloadModule(moduleName);
 			res.json({ success, message: success ? `Reloaded module ${moduleName}` : `Failed to reload ${moduleName}` });
 		});
@@ -388,7 +390,7 @@ export class ExpressServer {
 
 		// GET: get all guild roles
 		this.app.get('/api/guilds/:id/roles', requireAuth, async (req, res) => {
-			const guildId = req.params.id;
+			const guildId = req.params.id as string;
 			const guild = this.kernel.client.guilds.cache.get(guildId);
 			if (!guild) return res.status(404).json({ error: 'Guild not found' });
 
@@ -448,7 +450,7 @@ export class ExpressServer {
 
 		// GET: get permission rules
 		this.app.get('/api/guilds/:id/permissions', requireAuth, async (req, res) => {
-			const guildId = req.params.id;
+			const guildId = req.params.id as string;
 			try {
 				const { config } = await getModuleConfig<any>(guildId, 'command_permissions');
 				res.json(config.permissions || {});
@@ -459,7 +461,7 @@ export class ExpressServer {
 
 		// POST: save permission rules
 		this.app.post('/api/guilds/:id/permissions', requireAuth, async (req, res) => {
-			const guildId = req.params.id;
+			const guildId = req.params.id as string;
 			const { permissions } = req.body;
 
 			if (!permissions || typeof permissions !== 'object') {
@@ -619,7 +621,7 @@ export class ExpressServer {
 
 		// GET: global prefix + alias list + available commands with subcommands
 		this.app.get('/api/guilds/:id/prefix', requireAuth, async (req, res) => {
-			const guildId = req.params.id;
+			const guildId = req.params.id as string;
 			const guild = this.kernel.client.guilds.cache.get(guildId);
 			if (!guild) return res.status(404).json({ error: 'Guild not found' });
 
@@ -655,7 +657,7 @@ export class ExpressServer {
 
 		// POST: update global prefix
 		this.app.post('/api/guilds/:id/prefix/global', requireAuth, async (req, res) => {
-			const guildId = req.params.id;
+			const guildId = req.params.id as string;
 			const { prefix } = req.body;
 			if (!prefix || typeof prefix !== 'string' || prefix.length > 8) {
 				return res.status(400).json({ error: 'Prefix không hợp lệ (tối đa 8 ký tự).' });
@@ -671,7 +673,7 @@ export class ExpressServer {
 
 		// POST: add or update an alias
 		this.app.post('/api/guilds/:id/prefix/alias', requireAuth, async (req, res) => {
-			const guildId = req.params.id;
+			const guildId = req.params.id as string;
 			const { alias, command, subcommand } = req.body;
 
 			if (!alias || typeof alias !== 'string') {
@@ -700,8 +702,8 @@ export class ExpressServer {
 
 		// DELETE: remove an alias
 		this.app.delete('/api/guilds/:id/prefix/alias/:alias', requireAuth, async (req, res) => {
-			const guildId = req.params.id;
-			const aliasKey = req.params.alias.toLowerCase();
+			const guildId = req.params.id as string;
+			const aliasKey = (req.params.alias as string).toLowerCase();
 			try {
 				const { config, enabled } = await getModuleConfig<any>(guildId, 'prefix');
 				const aliases = { ...(config?.aliases ?? {}) };
@@ -721,7 +723,7 @@ export class ExpressServer {
 
 			try {
 				let attachmentChannel = this.kernel.client.channels.cache.find(
-					(c) => c.name === 'kini-attachments' && c.isTextBased(),
+					(c) => 'name' in c && c.name === 'kini-attachments' && c.isTextBased(),
 				) as any;
 
 				if (!attachmentChannel) {

@@ -7,7 +7,7 @@ import {
 import { Kernel } from '../Kernel';
 
 export interface ICommand {
-  data: SlashCommandBuilder | ContextMenuCommandBuilder | Omit<SlashCommandBuilder, 'addSubcommand' | 'addSubcommandGroup'>;
+  data: any;
   cooldown?: number; // seconds
   ownerOnly?: boolean;
   guildOnly?: boolean;

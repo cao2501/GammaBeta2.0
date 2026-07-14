@@ -6,7 +6,7 @@ import { Scheduler, scheduler } from './scheduler/Scheduler';
 import { ServiceRegistry, registry } from './registry/ServiceRegistry';
 import { logger } from './logger/Logger';
 import { prisma } from '../database/PrismaClient';
-import { AttachmentBuilder, PermissionFlagsBits, GuildMember } from 'discord.js';
+import { AttachmentBuilder, PermissionFlagsBits, GuildMember, Collection } from 'discord.js';
 import { getModuleConfig } from '../database/helpers';
 import { UIBuilders } from './ui/UIBuilders';
 
@@ -148,7 +148,7 @@ export class Kernel {
 
       // Cooldown check
       if (!this.client.cooldowns.has(interaction.commandName)) {
-        this.client.cooldowns.set(interaction.commandName, new Map());
+        this.client.cooldowns.set(interaction.commandName, new Collection());
       }
       const now = Date.now();
       const timestamps = this.client.cooldowns.get(interaction.commandName)!;

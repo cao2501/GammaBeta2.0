@@ -1,6 +1,6 @@
 import {
   ChatInputCommandInteraction, SlashCommandBuilder, EmbedBuilder,
-  GuildMember,
+  GuildMember, ActionRowBuilder, StringSelectMenuBuilder,
 } from 'discord.js';
 import { ICommand } from '../../../core/interfaces/ICommand';
 import { Kernel } from '../../../core/Kernel';
@@ -249,7 +249,6 @@ export default class MusicCommand implements ICommand {
         return void interaction.editReply('❌ Không tìm thấy kết quả tìm kiếm nào phù hợp. Hãy thử lại với từ khóa khác.');
       }
 
-      const { StringSelectMenuBuilder, ActionRowBuilder } = await import('discord.js');
 
       const selectMenu = new StringSelectMenuBuilder()
         .setCustomId(`music:search:select:${interaction.user.id}`)

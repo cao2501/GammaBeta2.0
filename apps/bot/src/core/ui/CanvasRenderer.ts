@@ -9,8 +9,8 @@ export class CanvasRenderer {
     width: number,
     height: number,
     radius: number,
-    fillColor?: string,
-    strokeColor?: string,
+    fillColor?: any,
+    strokeColor?: any,
     strokeWidth = 1
   ): void {
     ctx.beginPath();
@@ -67,7 +67,7 @@ export class CanvasRenderer {
 
     try {
       const img = await loadImage(avatarUrl);
-      ctx.drawImage(img, x - radius, y - radius, radius * 2, radius * 2);
+      (ctx as any).drawImage(img, x - radius, y - radius, radius * 2, radius * 2);
     } catch {
       ctx.fillStyle = '#475569';
       ctx.fill();

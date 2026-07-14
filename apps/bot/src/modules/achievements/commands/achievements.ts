@@ -83,7 +83,7 @@ export default class AchievementsCommand implements ICommand {
       if (existing) return void interaction.reply({ content: `❌ Achievement **${name}** đã tồn tại.`, ephemeral: true });
 
       const achievement = await kernel.db.achievement.create({
-        data: { name, description, icon, hidden },
+        data: { name, description, icon, hidden, condition: '{}' },
       });
 
       await interaction.reply({ embeds: [new EmbedBuilder().setColor(0x2ecc71).setTitle('✅ Achievement Đã Tạo').addFields({ name: '🏆 Tên', value: name, inline: true }, { name: '🎯 Icon', value: icon, inline: true }, { name: '🔒 Hidden', value: hidden ? 'Có' : 'Không', inline: true }, { name: '📋 Mô tả', value: description }, { name: '🆔 ID', value: `\`${achievement.id.slice(-8)}\`` })] });

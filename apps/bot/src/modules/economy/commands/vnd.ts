@@ -1,5 +1,6 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder, AttachmentBuilder, PermissionFlagsBits } from 'discord.js';
 import { ICommand } from '../../../core/interfaces/ICommand';
+import { logger } from '../../../core/logger/Logger';
 import { Kernel } from '../../../core/Kernel';
 import { ensureMember } from '../../../database/helpers';
 import { CardRenderer } from '../../../core/ui/CardRenderer';
@@ -365,7 +366,7 @@ export default class VndCommand implements ICommand {
 					files: [attachment],
 				});
 			} catch (err) {
-				kernel.logger.error('Failed to generate deposit card:', err);
+				logger.error('Failed to generate deposit card:', err);
 				const errorEmbed = UIBuilders.createErrorEmbed(
 					'Lỗi Hệ Thống',
 					'❌ Không thể kết nối tới VietQR API để tạo mã QR nạp tiền. Vui lòng thử lại sau.',

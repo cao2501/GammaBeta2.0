@@ -1,4 +1,4 @@
-import { Kernel } from './core/Kernel';
+import { Kernel } from '../Kernel';
 
 export interface ModuleManifest {
   name: string;

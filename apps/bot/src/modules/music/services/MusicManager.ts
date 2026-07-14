@@ -70,7 +70,7 @@ class MusicManager {
         spotify: {
           client_id,
           client_secret
-        }
+        } as any
       });
       this.spotifyAuthorized = true;
       logger.info('Spotify client credentials successfully initialized for playback.');
@@ -262,7 +262,7 @@ class MusicManager {
         queue.connection = joinVoiceChannel({
           channelId: queue.voiceChannelId,
           guildId: queue.guildId,
-          adapterCreator: queue.textChannel.guild.voiceAdapterCreator as any,
+          adapterCreator: (queue.textChannel as any).guild.voiceAdapterCreator as any,
         });
 
         // Debug Connection State
@@ -404,11 +404,11 @@ class MusicManager {
       if (track.thumbnail) {
         embed.setThumbnail(track.thumbnail);
       }
-      await queue.textChannel.send({ embeds: [embed] }).catch(() => {});
+      await (queue.textChannel as any).send({ embeds: [embed] }).catch(() => {});
 
     } catch (err: any) {
       logger.error(`Error starting stream for ${track.title}: ${err.message}`, { stack: err.stack });
-      queue.textChannel.send(`❌ Không thể phát bài **${track.title}** do lỗi hệ thống phát nhạc. Chi tiết: ${err.message}`).catch(() => {});
+      (queue.textChannel as any).send(`❌ Không thể phát bài **${track.title}** do lỗi hệ thống phát nhạc. Chi tiết: ${err.message}`).catch(() => {});
       this.handleNextTrack(guildId);
     }
   }

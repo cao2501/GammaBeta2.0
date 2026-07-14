@@ -8,6 +8,16 @@ const TYPE_EMOJI: Record<string, string> = {
   CUSTOM: '🎁',
 };
 
+function sortCustomLast(items: any[], category: string): void {
+  if (category === 'RING') {
+    const idx = items.findIndex(x => x.name.toLowerCase() === 'custom');
+    if (idx !== -1) {
+      const [customItem] = items.splice(idx, 1);
+      items.push(customItem);
+    }
+  }
+}
+
 export default class InventoryCommand implements ICommand {
   data = new SlashCommandBuilder()
     .setName('inventory')
@@ -52,6 +62,7 @@ export default class InventoryCommand implements ICommand {
         where: { guildId, category: 'RING', enabled: true },
         orderBy: { price: 'asc' },
       });
+      sortCustomLast(ringShopItems, 'RING');
 
       const formatLine = (p: any, shopItems: any[]) => {
         const idx = shopItems.findIndex(x => x.id === p.item.id);
@@ -100,6 +111,7 @@ export default class InventoryCommand implements ICommand {
         where: { guildId, category, enabled: true },
         orderBy: { price: 'asc' },
       });
+      sortCustomLast(shopItems, category);
 
       const item = shopItems[displayId - 1];
       if (!item) {

@@ -67,10 +67,11 @@ export default class ScamDetectionModule implements IModule {
 
         // Auto-warn
         kernel.eventBus.emit('moderation:warn', {
-          guildId: message.guildId,
+          guildId: message.guildId || '',
           userId: message.author.id,
           moderatorId: kernel.client.user!.id,
           reason: `[Auto-Scam] ${reason}`,
+          points: 1,
         });
 
         // Log to mod channel

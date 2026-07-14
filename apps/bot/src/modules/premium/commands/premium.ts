@@ -4,6 +4,18 @@ import {
 import { ICommand } from '../../../core/interfaces/ICommand';
 import { Kernel } from '../../../core/Kernel';
 
+const planTiers: Record<string, number> = {
+  BASIC: 1,
+  PRO: 2,
+  ULTIMATE: 3,
+};
+
+const tierPlans: Record<number, string> = {
+  1: 'BASIC',
+  2: 'PRO',
+  3: 'ULTIMATE',
+};
+
 export default class PremiumCommand implements ICommand {
   data = new SlashCommandBuilder()
     .setName('premium')
@@ -39,7 +51,7 @@ export default class PremiumCommand implements ICommand {
         .setColor(isPremium ? 0xf1c40f : 0x5865f2)
         .addFields(
           { name: '✨ Trạng thái', value: isPremium ? '💎 Premium Active' : '⚪ Free Plan', inline: true },
-          { name: '📋 Gói', value: record?.plan ?? 'N/A', inline: true },
+          { name: '📋 Gói', value: record?.tier ? (tierPlans[record.tier] ?? 'BASIC') : 'N/A', inline: true },
           { name: '📅 Hết hạn', value: record?.expiresAt ? `<t:${Math.floor(record.expiresAt.getTime() / 1000)}:R>` : 'N/A', inline: true },
         )
         .setFooter({ text: isPremium ? '🎉 Cảm ơn bạn đã sử dụng Premium!' : 'Liên hệ bot owner để kích hoạt Premium.' });
@@ -59,10 +71,12 @@ export default class PremiumCommand implements ICommand {
         update: { premium: true },
       });
 
+      const tier = planTiers[plan] ?? 1;
+
       await kernel.db.premiumRecord.upsert({
         where: { guildId: targetGuildId },
-        create: { guildId: targetGuildId, plan, expiresAt, activatedBy: interaction.user.id, active: true },
-        update: { plan, expiresAt, activatedBy: interaction.user.id, active: true },
+        create: { guildId: targetGuildId, tier, expiresAt, active: true },
+        update: { tier, expiresAt, active: true },
       });
 
       await interaction.reply({ content: `✅ Đã kích hoạt **${plan}** Premium cho server \`${targetGuildId}\` — ${days} ngày (hết hạn <t:${Math.floor(expiresAt.getTime() / 1000)}:R>).`, ephemeral: true });
@@ -82,7 +96,7 @@ export default class PremiumCommand implements ICommand {
         .setColor(0xf1c40f)
         .setDescription(
           premiumGuilds.length
-            ? premiumGuilds.map(r => `🏠 \`${r.guildId}\` — **${r.plan}** — Hết hạn <t:${Math.floor(r.expiresAt.getTime() / 1000)}:R>`).join('\n')
+            ? premiumGuilds.map(r => `🏠 \`${r.guildId}\` — **${tierPlans[r.tier] ?? 'BASIC'}** — Hết hạn <t:${Math.floor(r.expiresAt.getTime() / 1000)}:R>`).join('\n')
             : 'Không có server premium nào.'
         )
         .setFooter({ text: `Tổng: ${premiumGuilds.length} servers` });

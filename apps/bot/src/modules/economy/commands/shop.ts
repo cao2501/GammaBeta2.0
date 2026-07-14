@@ -45,6 +45,16 @@ export async function seedDefaultRings(kernel: Kernel, guildId: string): Promise
   }
 }
 
+export function sortCustomLast(items: any[], category: string): void {
+  if (category === 'RING') {
+    const idx = items.findIndex(x => x.name.toLowerCase() === 'custom');
+    if (idx !== -1) {
+      const [customItem] = items.splice(idx, 1);
+      items.push(customItem);
+    }
+  }
+}
+
 export default class ShopCommand implements ICommand {
   data = new SlashCommandBuilder()
     .setName('shop')
@@ -128,6 +138,7 @@ export default class ShopCommand implements ICommand {
         where: { guildId, enabled: true, category },
         orderBy: { price: 'asc' },
       });
+      sortCustomLast(items, category);
 
       if (!items.length) {
         return void interaction.editReply({
@@ -205,6 +216,7 @@ export default class ShopCommand implements ICommand {
         where: { guildId, enabled: true, category },
         orderBy: { price: 'asc' },
       });
+      sortCustomLast(allItems, category);
 
       const item = allItems[itemIndex - 1];
       if (!item) {
@@ -356,6 +368,7 @@ export default class ShopCommand implements ICommand {
         where: { guildId, category },
         orderBy: { price: 'asc' },
       });
+      sortCustomLast(itemsInCat, category);
 
       const item = itemsInCat[itemIndex - 1];
       if (!item) {
@@ -417,6 +430,7 @@ export default class ShopCommand implements ICommand {
         where: { guildId, category, enabled: true },
         orderBy: { price: 'asc' },
       });
+      sortCustomLast(itemsInCat, category);
 
       const item = itemsInCat[itemIndex - 1];
       if (!item) {
