@@ -1,28 +1,32 @@
 const fs = require('fs');
 const path = require('path');
 
-function copyDir(src, dest) {
-  fs.mkdirSync(dest, { recursive: true });
-  const entries = fs.readdirSync(src, { withFileTypes: true });
+function copyFolderRecursiveSync(source, target) {
+  if (!fs.existsSync(target)) {
+    fs.mkdirSync(target, { recursive: true });
+  }
 
-  for (let entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-
-    if (entry.isDirectory()) {
-      copyDir(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
-    }
+  if (fs.lstatSync(source).isDirectory()) {
+    const files = fs.readdirSync(source);
+    files.forEach((file) => {
+      const curSource = path.join(source, file);
+      const curTarget = path.join(target, file);
+      if (fs.lstatSync(curSource).isDirectory()) {
+        copyFolderRecursiveSync(curSource, curTarget);
+      } else {
+        fs.copyFileSync(curSource, curTarget);
+      }
+    });
   }
 }
 
-const srcDir = path.join(__dirname, '../src/modules/dashboard/public');
-const destDir = path.join(__dirname, '../dist/modules/dashboard/public');
+// Copy dashboard public assets
+const srcPath = path.join(__dirname, '../src/modules/dashboard/public');
+const destPath = path.join(__dirname, '../dist/modules/dashboard/public');
 
-if (fs.existsSync(srcDir)) {
-  copyDir(srcDir, destDir);
-  console.log('Static assets copied successfully.');
+if (fs.existsSync(srcPath)) {
+  copyFolderRecursiveSync(srcPath, destPath);
+  console.log('✅ Static assets copied successfully!');
 } else {
-  console.error('Source directory not found:', srcDir);
+  console.error('❌ Source public path not found:', srcPath);
 }
