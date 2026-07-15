@@ -339,7 +339,16 @@ export default class ShopCommand implements ICommand {
       const imageString = interaction.options.getString('image');
       const imageFile = interaction.options.getAttachment('file');
       const imageUrl = imageFile ? imageFile.url : imageString;
-      const emoji = interaction.options.getString('emoji');
+      let emoji = interaction.options.getString('emoji');
+
+      if (emoji) {
+        const cleanEmojiName = emoji.replace(/:/g, '').trim().toLowerCase();
+        const foundEmoji = interaction.guild?.emojis.cache.find((e: any) => e.name?.toLowerCase() === cleanEmojiName)
+                        || kernel.client.emojis.cache.find((e: any) => e.name?.toLowerCase() === cleanEmojiName);
+        if (foundEmoji) {
+          emoji = foundEmoji.toString();
+        }
+      }
 
       const existing = await kernel.db.shopItem.findFirst({ where: { guildId, name } });
       if (existing) return void interaction.editReply({ content: `❌ Sản phẩm **${name}** đã tồn tại.` });
@@ -421,7 +430,17 @@ export default class ShopCommand implements ICommand {
       if (enabled !== null) updates.enabled = enabled;
       if (image !== null) updates.imageUrl = image === 'none' ? null : image;
       if (description !== null) updates.description = description === 'none' ? null : description;
-      if (emoji !== null) updates.emoji = emoji === 'none' ? null : emoji;
+      let resolvedEmoji = emoji;
+      if (emoji && emoji !== 'none') {
+        const cleanEmojiName = emoji.replace(/:/g, '').trim().toLowerCase();
+        const foundEmoji = interaction.guild?.emojis.cache.find((e: any) => e.name?.toLowerCase() === cleanEmojiName)
+                        || kernel.client.emojis.cache.find((e: any) => e.name?.toLowerCase() === cleanEmojiName);
+        if (foundEmoji) {
+          resolvedEmoji = foundEmoji.toString();
+        }
+      }
+
+      if (emoji !== null) updates.emoji = emoji === 'none' ? null : resolvedEmoji;
 
       await kernel.db.shopItem.update({ where: { id: item.id }, data: updates });
       await interaction.editReply({ content: `✅ Đã cập nhật sản phẩm **${updates.name || item.name}** (ID: #${String(itemIndex).padStart(2, '0')}).` });

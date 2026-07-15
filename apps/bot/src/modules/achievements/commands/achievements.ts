@@ -76,8 +76,16 @@ export default class AchievementsCommand implements ICommand {
       }
       const name = interaction.options.getString('name', true);
       const description = interaction.options.getString('description', true);
-      const icon = interaction.options.getString('icon', true);
+      let icon = interaction.options.getString('icon', true);
       const hidden = interaction.options.getBoolean('hidden') ?? false;
+
+      // Resolve custom emoji/icon automatically
+      const cleanIconName = icon.replace(/:/g, '').trim().toLowerCase();
+      const foundEmoji = interaction.guild?.emojis.cache.find((e: any) => e.name?.toLowerCase() === cleanIconName)
+                      || kernel.client.emojis.cache.find((e: any) => e.name?.toLowerCase() === cleanIconName);
+      if (foundEmoji) {
+        icon = foundEmoji.toString();
+      }
 
       const existing = await kernel.db.achievement.findFirst({ where: { name } });
       if (existing) return void interaction.reply({ content: `❌ Achievement **${name}** đã tồn tại.`, ephemeral: true });
