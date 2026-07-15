@@ -12,6 +12,7 @@ import { logger } from '../../../core/logger/Logger';
 import { Kernel } from '../../../core/Kernel';
 import { ensureGuild, getModuleConfig, setModuleConfig } from '../../../database/helpers';
 import { UIBuilders } from '../../../core/ui/UIBuilders';
+import { SpecialLogger } from '../../../core/logger/SpecialLogger';
 
 // Winston transport for streaming logs via socket.io
 class SocketIoTransport extends Transport {
@@ -522,6 +523,23 @@ export class ExpressServer {
 
 				logger.info(
 					`[SePay Webhook] Successfully processed deposit of ${amount.toLocaleString('vi-VN')} VND for User ${userId} in Guild ${guildId}`,
+				);
+
+				// Log to SpecialLogger
+				let targetUsername = userId;
+				try {
+					const user = await this.kernel.client.users.fetch(userId);
+					if (user) targetUsername = user.username;
+				} catch {}
+				await SpecialLogger.logVnd(
+					this.kernel,
+					guildId,
+					userId,
+					targetUsername,
+					'DEPOSIT',
+					amount,
+					txId,
+					`Nạp tiền tự động qua VietQR (SePay). Mã nạp: ${depositCode}, Cổng thanh toán: ${gateway}, Nội dung chuyển: ${content}.`
 				);
 
 				// 5. Send confirmation Direct Message (DM) to the user

@@ -6,6 +6,7 @@ import {
 import { Kernel } from '../../../core/Kernel';
 import { logger } from '../../../core/logger/Logger';
 import { ensureGuild } from '../../../database/helpers';
+import { SpecialLogger } from '../../../core/logger/SpecialLogger';
 
 export class TicketService {
   /**
@@ -194,84 +195,18 @@ export class TicketService {
     let messages = await channel.messages.fetch({ limit: 100 }).catch(() => null);
     const sortedMessages = messages ? Array.from(messages.values()).reverse() as any[] : [];
 
-    // 1. Build Text Transcript
-    let transcriptText = `==================================================\n`;
-    transcriptText += `TICKET LOG TRANSCRIPT: ${channel.name}\n`;
-    transcriptText += `Guild: ${channel.guild.name} (${channel.guild.id})\n`;
-    transcriptText += `Chủ ticket: ID ${ticket.userId}\n`;
-    transcriptText += `Đóng bởi: ${closer.tag} (ID ${closer.id})\n`;
-    transcriptText += `Lý do: ${reason}\n`;
-    transcriptText += `Thời gian đóng: ${new Date().toISOString()}\n`;
-    transcriptText += `==================================================\n\n`;
-
-    for (const m of sortedMessages) {
-      const time = new Date(m.createdTimestamp).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-      transcriptText += `[${time}] ${m.author.tag} (${m.author.id}):\n`;
-      if (m.content) {
-        transcriptText += `${m.content}\n`;
-      }
-      if (m.attachments.size > 0) {
-        transcriptText += `[Đính kèm: ${Array.from(m.attachments.values()).map((a: any) => a.name).join(', ')}]\n`;
-      }
-      transcriptText += `\n`;
-    }
-
-    // 2. Fetch and Prepare Files/Attachments
-    const files: AttachmentBuilder[] = [];
-    
-    // Add transcript text file
-    const transcriptBuffer = Buffer.from(transcriptText, 'utf-8');
-    files.push(new AttachmentBuilder(transcriptBuffer, { name: `transcript-${channel.name}.txt` }));
-
-    // Re-download files/images to save them permanently in the logs channel
-    for (const m of sortedMessages) {
-      for (const att of m.attachments.values()) {
-        try {
-          const fileRes = await fetch(att.url);
-          if (fileRes.ok) {
-            const buffer = Buffer.from(await fileRes.arrayBuffer());
-            files.push(new AttachmentBuilder(buffer, { name: att.name }));
-          } else {
-            files.push(new AttachmentBuilder(att.url, { name: att.name }));
-          }
-        } catch {
-          // Fallback to URL directly
-          files.push(new AttachmentBuilder(att.url, { name: att.name }));
-        }
-      }
-    }
-
-    // 3. Post to Hidden Logs Channel
-    try {
-      const logChannel = await this.getOrCreateLogChannel(channel.guild, kernel);
-      
-      const logEmbed = new EmbedBuilder()
-        .setTitle(`🔒 Ticket Closed: ${channel.name}`)
-        .setColor(0xe74c3c)
-        .addFields(
-          { name: '👤 Chủ Ticket', value: `<@${ticket.userId}> (ID: ${ticket.userId})`, inline: true },
-          { name: '🔒 Đóng bởi', value: `${closer} (${closer.tag})`, inline: true },
-          { name: '📋 Lý do', value: reason, inline: false }
-        )
-        .setFooter({ text: `Kini Ticket Logs` })
-        .setTimestamp();
-
-      // Send files in chunks of 5 to avoid hitting API limitations
-      const chunkSize = 5;
-      for (let i = 0; i < files.length; i += chunkSize) {
-        const chunk = files.slice(i, i + chunkSize);
-        if (i === 0) {
-          await logChannel.send({ embeds: [logEmbed], files: chunk });
-        } else {
-          await logChannel.send({
-            content: `📎 Tệp tin bổ sung từ ticket **${channel.name}**:`,
-            files: chunk
-          });
-        }
-      }
-    } catch (err: any) {
-      logger.error(`Failed to post ticket transcript logs:`, { error: err });
-    }
+    // Log to SpecialLogger (writes summary, txt, html transcript and downloads attachments)
+    await SpecialLogger.logTicket(
+      kernel,
+      channel.guild,
+      channel.name,
+      ticket.id,
+      ticket.userId,
+      closer.tag,
+      closer.id,
+      reason,
+      sortedMessages
+    );
 
     // 4. Delete the Channel/Thread
     setTimeout(async () => {

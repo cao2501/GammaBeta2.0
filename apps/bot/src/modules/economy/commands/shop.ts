@@ -6,6 +6,7 @@ import { ICommand } from '../../../core/interfaces/ICommand';
 import { Kernel } from '../../../core/Kernel';
 import { ensureGuild } from '../../../database/helpers';
 import { createModuleLogger } from '../../../core/logger/Logger';
+import { SpecialLogger } from '../../../core/logger/SpecialLogger';
 
 const log = createModuleLogger('economy');
 
@@ -254,6 +255,20 @@ export default class ShopCommand implements ICommand {
       });
 
       log.info(`[SHOP_BUY] User ${interaction.user.id} (${interaction.user.username}) bought item ${item.name} (${item.id}) in guild ${guildId}. Price: ${item.price} ${item.currency}. Pre-balance: ${balanceValue}, Post-balance: ${newBalance}`, { module: 'economy' });
+
+      if (isVnd) {
+        const txId = SpecialLogger.generateTxId('BUY');
+        await SpecialLogger.logVnd(
+          kernel,
+          guildId,
+          interaction.user.id,
+          interaction.user.username,
+          'SHOP_BUY',
+          item.price,
+          txId,
+          `Mua vật phẩm "${item.name}" (ID sản phẩm: #${itemIndex}) từ Cửa Hàng. Số dư mới: ${newBalance.toLocaleString()} VNĐ.`
+        );
+      }
 
       // Reduce stock
       if (item.stock !== null) {

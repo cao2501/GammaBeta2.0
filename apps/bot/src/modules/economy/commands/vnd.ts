@@ -5,6 +5,7 @@ import { Kernel } from '../../../core/Kernel';
 import { ensureMember } from '../../../database/helpers';
 import { CardRenderer } from '../../../core/ui/CardRenderer';
 import { UIBuilders } from '../../../core/ui/UIBuilders';
+import { SpecialLogger } from '../../../core/logger/SpecialLogger';
 
 export default class VndCommand implements ICommand {
 	data = new SlashCommandBuilder()
@@ -113,6 +114,9 @@ export default class VndCommand implements ICommand {
 					data: { vnd: { increment: amount } },
 				});
 
+				const txId = SpecialLogger.generateTxId('ADM');
+				await SpecialLogger.logVnd(kernel, guildId, targetUser.id, targetUser.username, 'ADMIN_ADD', amount, txId, `Admin ${interaction.user.tag} (${interaction.user.id}) nạp thêm tiền cho thành viên. Số dư mới: ${memberData.vnd.toLocaleString()} VNĐ.`);
+
 				const successEmbed = UIBuilders.createSuccessEmbed(
 					'Nạp Tiền Thành Công',
 					`✅ Đã cộng **${amount.toLocaleString('vi-VN')} ₫** cho <@${targetUser.id}>.\nSố dư mới: **${memberData.vnd.toLocaleString('vi-VN')} ₫**`,
@@ -144,6 +148,9 @@ export default class VndCommand implements ICommand {
 					data: { vnd: { decrement: finalAmount } },
 				});
 
+				const txId = SpecialLogger.generateTxId('ADM');
+				await SpecialLogger.logVnd(kernel, guildId, targetUser.id, targetUser.username, 'ADMIN_REMOVE', finalAmount, txId, `Admin ${interaction.user.tag} (${interaction.user.id}) rút bớt tiền của thành viên. Số dư mới: ${memberData.vnd.toLocaleString()} VNĐ.`);
+
 				const successEmbed = UIBuilders.createSuccessEmbed(
 					'Rút Tiền Thành Công',
 					`✅ Đã trừ **${finalAmount.toLocaleString('vi-VN')} ₫** từ tài khoản <@${targetUser.id}>.\nSố dư mới: **${memberData.vnd.toLocaleString('vi-VN')} ₫**`,
@@ -167,6 +174,9 @@ export default class VndCommand implements ICommand {
 					where: { guildId_userId: { guildId, userId: targetUser.id } },
 					data: { vnd: amount },
 				});
+
+				const txId = SpecialLogger.generateTxId('ADM');
+				await SpecialLogger.logVnd(kernel, guildId, targetUser.id, targetUser.username, 'ADMIN_SET', amount, txId, `Admin ${interaction.user.tag} (${interaction.user.id}) đặt lại số dư thành viên thành ${amount.toLocaleString()} VNĐ.`);
 
 				const successEmbed = UIBuilders.createSuccessEmbed(
 					'Đặt Lại Số Dư',
@@ -283,6 +293,9 @@ export default class VndCommand implements ICommand {
 				}),
 			]);
 
+			const txId = SpecialLogger.generateTxId('PAY');
+			await SpecialLogger.logVnd(kernel, guildId, interaction.user.id, interaction.user.username, 'PAY', amount, txId, `Chuyển khoản thành công sang thành viên <@${receiver.id}> (${receiver.tag}).`);
+
 			const successEmbed = UIBuilders.createSuccessEmbed(
 				'Giao Dịch Thành Công',
 				`💸 Bạn đã chuyển **${amount.toLocaleString('vi-VN')} ₫** cho <@${receiver.id}> thành công!`,
@@ -337,6 +350,9 @@ export default class VndCommand implements ICommand {
 					amount,
 				},
 			});
+
+			const txId = SpecialLogger.generateTxId('DEP');
+			await SpecialLogger.logVnd(kernel, guildId, interaction.user.id, interaction.user.username, 'DEPOSIT', amount, txId, `Khởi tạo hóa đơn nạp tiền VietQR, mã nạp: ${depositCode}.`);
 
 			// Fetch dynamic VietQR code image
 			const bankId = process.env.BANK_ID ?? 'MBBank';

@@ -30,7 +30,13 @@ export default class LoggingCommand implements ICommand {
         .addChoices(...LOG_EVENTS.slice(0, 25).map(e => ({ name: e.replace(/_/g, ' '), value: e })))
       )
     )
-    .addSubcommand(s => s.setName('list').setDescription('Xem tất cả log channels đã cấu hình'));
+    .addSubcommand(s => s.setName('list').setDescription('Xem tất cả log channels đã cấu hình'))
+    .addSubcommand(s => s.setName('set-vnd').setDescription('Cấu hình kênh log giao dịch VND')
+      .addChannelOption(o => o.setName('channel').setDescription('Kênh log').setRequired(true))
+    )
+    .addSubcommand(s => s.setName('set-ticket').setDescription('Cấu hình kênh log Ticket')
+      .addChannelOption(o => o.setName('channel').setDescription('Kênh log').setRequired(true))
+    );
 
   async execute(interaction: ChatInputCommandInteraction, kernel: Kernel): Promise<void> {
     const sub = interaction.options.getSubcommand();
@@ -51,6 +57,22 @@ export default class LoggingCommand implements ICommand {
       const eventType = interaction.options.getString('event', true);
       await kernel.db.logChannel.updateMany({ where: { guildId, eventType }, data: { enabled: false } });
       await interaction.reply({ content: `✅ Đã tắt log **${eventType}**.`, ephemeral: true });
+    } else if (sub === 'set-vnd') {
+      const channel = interaction.options.getChannel('channel', true);
+      await kernel.db.logChannel.upsert({
+        where: { guildId_eventType: { guildId, eventType: 'VND_TRANSACTION' } },
+        create: { guildId, eventType: 'VND_TRANSACTION', channelId: channel.id, enabled: true },
+        update: { channelId: channel.id, enabled: true },
+      });
+      await interaction.reply({ content: `✅ Đã thiết lập kênh log giao dịch VND → <#${channel.id}>`, ephemeral: true });
+    } else if (sub === 'set-ticket') {
+      const channel = interaction.options.getChannel('channel', true);
+      await kernel.db.logChannel.upsert({
+        where: { guildId_eventType: { guildId, eventType: 'TICKET_LOG' } },
+        create: { guildId, eventType: 'TICKET_LOG', channelId: channel.id, enabled: true },
+        update: { channelId: channel.id, enabled: true },
+      });
+      await interaction.reply({ content: `✅ Đã thiết lập kênh log Ticket → <#${channel.id}>`, ephemeral: true });
     } else if (sub === 'list') {
       await interaction.deferReply({ ephemeral: true });
       const channels = await kernel.db.logChannel.findMany({ where: { guildId }, orderBy: { eventType: 'asc' } });
