@@ -92,6 +92,7 @@ export default class ShopCommand implements ICommand {
       .addIntegerOption(o => o.setName('stock').setDescription('Số lượng (0 = không giới hạn)'))
       .addStringOption(o => o.setName('image').setDescription('URL hình ảnh sản phẩm'))
       .addAttachmentOption(o => o.setName('file').setDescription('Tải lên ảnh từ máy (tùy chọn)'))
+      .addStringOption(o => o.setName('emoji').setDescription('Emoji hiển thị trước tên sản phẩm (tùy chọn)'))
     )
     .addSubcommand(s => s.setName('remove').setDescription('[Admin] Xóa sản phẩm')
       .addStringOption(o => o.setName('name').setDescription('Tên sản phẩm').setRequired(true))
@@ -316,19 +317,20 @@ export default class ShopCommand implements ICommand {
       const type = interaction.options.getString('type', true);
       const category = interaction.options.getString('category') ?? 'GENERAL';
       const currency = interaction.options.getString('currency') ?? 'ECO';
-      const role = interaction.options.getRole('role');
+       const role = interaction.options.getRole('role');
       const description = interaction.options.getString('description');
       const stockOpt = interaction.options.getInteger('stock');
       const stock = (stockOpt && stockOpt > 0) ? stockOpt : null;
       const imageString = interaction.options.getString('image');
       const imageFile = interaction.options.getAttachment('file');
       const imageUrl = imageFile ? imageFile.url : imageString;
+      const emoji = interaction.options.getString('emoji');
 
       const existing = await kernel.db.shopItem.findFirst({ where: { guildId, name } });
       if (existing) return void interaction.editReply({ content: `❌ Sản phẩm **${name}** đã tồn tại.` });
 
       await kernel.db.shopItem.create({
-        data: { guildId, name, price, type, category, currency, roleId: role?.id ?? null, description: description ?? null, stock, imageUrl },
+        data: { guildId, name, price, type, category, currency, roleId: role?.id ?? null, description: description ?? null, stock, imageUrl, emoji },
       });
 
       const embed = new EmbedBuilder()

@@ -174,7 +174,7 @@ export class CardRenderer {
     const ratio = Math.min(1, currentXp / (nextXp || 1));
     const xpText = `${currentXp.toLocaleString()} / ${nextXp.toLocaleString()} XP`;
     ctx.fillStyle = Theme.colors.textMuted;
-    ctx.font = 'bold 16px Consolas, monospace';
+    ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText(xpText, width - 40, 142);
     ctx.textAlign = 'left'; // Reset
@@ -316,7 +316,7 @@ export class CardRenderer {
                         type.startsWith('chat') ? `${p.item.value.toLocaleString()} tin` :
                         CanvasRenderer.formatNumber(p.item.value);
       ctx.fillStyle = Theme.colors.accentGold;
-      ctx.font = 'bold 13px Consolas, monospace';
+      ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
       ctx.fillText(scoreText, avatarX, p.y + p.h - 25);
       
       ctx.textAlign = 'left'; // Reset alignment
@@ -336,7 +336,7 @@ export class CardRenderer {
 
       // Rank number
       ctx.fillStyle = Theme.colors.textMuted;
-      ctx.font = 'bold 16px Consolas, monospace';
+      ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(rankNum.toString(), itemX + 35, listY + 36);
 
@@ -351,7 +351,7 @@ export class CardRenderer {
 
       // Score
       ctx.fillStyle = Theme.colors.accentGold;
-      ctx.font = 'bold 14px Consolas, monospace';
+      ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
       ctx.textAlign = 'right';
       const rowScoreText = item.level !== undefined ? `LV.${item.level}` :
                            type.startsWith('voice') ? `${item.value.toLocaleString()} phút` :
@@ -388,7 +388,7 @@ export class CardRenderer {
       );
 
       ctx.fillStyle = Theme.colors.accentGold;
-      ctx.font = 'bold 16px Consolas, monospace';
+      ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(callerRank.rank.toString(), itemX + 35, callerY + 36);
 
@@ -403,7 +403,7 @@ export class CardRenderer {
 
       // Score
       ctx.fillStyle = Theme.colors.accentGold;
-      ctx.font = 'bold 14px Consolas, monospace';
+      ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
       ctx.textAlign = 'right';
       const callerScoreText = callerRank.level !== undefined ? `LV.${callerRank.level}` :
                               type.startsWith('voice') ? `${callerRank.value.toLocaleString()} phút` :
@@ -479,7 +479,7 @@ export class CardRenderer {
     ctx.fillText(nickname || username, 140, 72);
 
     ctx.fillStyle = Theme.colors.textMuted;
-    ctx.font = '15px Consolas, monospace';
+    ctx.font = '15px "Segoe UI", Arial, sans-serif';
     ctx.fillText(`@${username}`, 140, 96);
 
     // Joined Dates
@@ -813,9 +813,10 @@ export class CardRenderer {
       CanvasRenderer.drawRoundedRect(ctx, itemX, listY, 6, itemH, 3, accentColor);
 
       // Icon & Name
+      const emoji = item.emoji || (item.type === 'ROLE' ? '🎭' : '🎁');
       ctx.fillStyle = Theme.colors.textPrimary;
       ctx.font = 'bold 18px "Segoe UI", "Segoe UI Emoji", "Segoe UI Symbol", Arial, sans-serif';
-      ctx.fillText(`#${i + 1}  ${item.name}`, itemX + 25, listY + 30);
+      ctx.fillText(`#${i + 1}  ${emoji}  ${item.name}`, itemX + 25, listY + 30);
 
       // Description
       ctx.fillStyle = Theme.colors.textMuted;
