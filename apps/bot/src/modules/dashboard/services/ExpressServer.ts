@@ -716,6 +716,133 @@ export class ExpressServer {
 			}
 		});
 
+		// GET: get all staff for a specific guild
+		this.app.get('/api/guilds/:id/staff', requireAuth, checkGuildAccess, async (req, res) => {
+			const guildId = req.params.id as string;
+			try {
+				const staffs = await this.kernel.db.staff.findMany({
+					where: { guildId },
+					orderBy: { subKey: 'asc' }
+				});
+				res.json(staffs);
+			} catch (err: any) {
+				res.status(500).json({ error: err.message });
+			}
+		});
+
+		// POST: add or update a staff profile
+		this.app.post('/api/guilds/:id/staff', requireAuth, checkGuildAccess, async (req, res) => {
+			const guildId = req.params.id as string;
+			const { subKey, name, type, title, userId, priceDay, priceNight, avatarUrl, borderColor, description, fields, images } = req.body;
+
+			if (!subKey || !name || !type) {
+				return res.status(400).json({ error: 'Mã phụ, Tên và Phân loại nhân viên là bắt buộc.' });
+			}
+
+			try {
+				const existing = await this.kernel.db.staff.findUnique({
+					where: { guildId_subKey: { guildId, subKey: subKey.toLowerCase().trim() } }
+				});
+
+				const data = {
+					name,
+					type,
+					title: title || null,
+					userId: userId || null,
+					priceDay: priceDay ? parseFloat(priceDay) : 0,
+					priceNight: priceNight ? parseFloat(priceNight) : 0,
+					avatarUrl: avatarUrl || null,
+					borderColor: borderColor || '#ffc0cb',
+					description: description || null,
+					fields: typeof fields === 'string' ? fields : JSON.stringify(fields || []),
+					images: typeof images === 'string' ? images : JSON.stringify(images || [])
+				};
+
+				let staff;
+				if (existing) {
+					staff = await this.kernel.db.staff.update({
+						where: { id: existing.id },
+						data
+					});
+				} else {
+					staff = await this.kernel.db.staff.create({
+						data: {
+							guildId,
+							subKey: subKey.toLowerCase().trim(),
+							...data
+						}
+					});
+				}
+
+				res.json({ success: true, staff });
+			} catch (err: any) {
+				res.status(500).json({ error: err.message });
+			}
+		});
+
+		// DELETE: remove a staff profile
+		this.app.delete('/api/guilds/:id/staff/:subKey', requireAuth, checkGuildAccess, async (req, res) => {
+			const guildId = req.params.id as string;
+			const subKey = (req.params.subKey as string).toLowerCase().trim();
+
+			try {
+				const staff = await this.kernel.db.staff.findUnique({
+					where: { guildId_subKey: { guildId, subKey } }
+				});
+
+				if (!staff) {
+					return res.status(404).json({ error: 'Không tìm thấy nhân viên cần xóa.' });
+				}
+
+				await this.kernel.db.staff.delete({
+					where: { id: staff.id }
+				});
+
+				res.json({ success: true, deleted: subKey });
+			} catch (err: any) {
+				res.status(500).json({ error: err.message });
+			}
+		});
+
+		// GET: get booking configuration
+		this.app.get('/api/guilds/:id/booking/config', requireAuth, checkGuildAccess, async (req, res) => {
+			const guildId = req.params.id as string;
+			try {
+				const { config } = await getModuleConfig<any>(guildId, 'staff');
+				res.json({
+					serverCommission: config?.serverCommission ?? 10,
+					extraPersonFee: config?.extraPersonFee ?? 50000,
+					minPeopleForExtraFee: config?.minPeopleForExtraFee ?? 2,
+					priceDay: config?.priceDay ?? 100000,
+					priceNight: config?.priceNight ?? 120000
+				});
+			} catch (err: any) {
+				res.status(500).json({ error: err.message });
+			}
+		});
+
+		// POST: save booking configuration
+		this.app.post('/api/guilds/:id/booking/config', requireAuth, checkGuildAccess, async (req, res) => {
+			const guildId = req.params.id as string;
+			const { serverCommission, extraPersonFee, minPeopleForExtraFee, priceDay, priceNight } = req.body;
+
+			try {
+				const { config, enabled } = await getModuleConfig<any>(guildId, 'staff');
+				const newConfig = {
+					...(config || {}),
+					serverCommission: serverCommission !== undefined ? parseFloat(serverCommission) : 10,
+					extraPersonFee: extraPersonFee !== undefined ? parseFloat(extraPersonFee) : 50000,
+					minPeopleForExtraFee: minPeopleForExtraFee !== undefined ? parseInt(minPeopleForExtraFee, 10) : 2,
+					priceDay: priceDay !== undefined ? parseFloat(priceDay) : 100000,
+					priceNight: priceNight !== undefined ? parseFloat(priceNight) : 120000
+				};
+				await setModuleConfig(guildId, 'staff', newConfig, enabled);
+				res.json({ success: true, config: newConfig });
+			} catch (err: any) {
+				res.status(500).json({ error: err.message });
+			}
+		});
+
 		// POST: upload an image to Discord attachment channel and return URL
 		this.app.post('/api/upload', requireAuth, upload.single('file'), async (req, res) => {
 			if (!req.file) {

@@ -36,6 +36,12 @@ export default class LoggingCommand implements ICommand {
     )
     .addSubcommand(s => s.setName('set-ticket').setDescription('Cấu hình kênh log Ticket')
       .addChannelOption(o => o.setName('channel').setDescription('Kênh log').setRequired(true))
+    )
+    .addSubcommand(s => s.setName('set-booking').setDescription('Cấu hình kênh log đặt lịch (Booking)')
+      .addChannelOption(o => o.setName('channel').setDescription('Kênh log').setRequired(true))
+    )
+    .addSubcommand(s => s.setName('set-reactbill').setDescription('Cấu hình kênh đăng ký chung ghép bill (React Bill)')
+      .addChannelOption(o => o.setName('channel').setDescription('Kênh log').setRequired(true))
     );
 
   async execute(interaction: ChatInputCommandInteraction, kernel: Kernel): Promise<void> {
@@ -73,6 +79,22 @@ export default class LoggingCommand implements ICommand {
         update: { channelId: channel.id, enabled: true },
       });
       await interaction.reply({ content: `✅ Đã thiết lập kênh log Ticket → <#${channel.id}>`, ephemeral: true });
+    } else if (sub === 'set-booking') {
+      const channel = interaction.options.getChannel('channel', true);
+      await kernel.db.logChannel.upsert({
+        where: { guildId_eventType: { guildId, eventType: 'BOOKING_LOG' } },
+        create: { guildId, eventType: 'BOOKING_LOG', channelId: channel.id, enabled: true },
+        update: { channelId: channel.id, enabled: true },
+      });
+      await interaction.reply({ content: `✅ Đã thiết lập kênh log đặt lịch Booking → <#${channel.id}>`, ephemeral: true });
+    } else if (sub === 'set-reactbill') {
+      const channel = interaction.options.getChannel('channel', true);
+      await kernel.db.logChannel.upsert({
+        where: { guildId_eventType: { guildId, eventType: 'REACTBILL_CHANNEL' } },
+        create: { guildId, eventType: 'REACTBILL_CHANNEL', channelId: channel.id, enabled: true },
+        update: { channelId: channel.id, enabled: true },
+      });
+      await interaction.reply({ content: `✅ Đã thiết lập kênh đăng ký chung ghép bill React Bill → <#${channel.id}>`, ephemeral: true });
     } else if (sub === 'list') {
       await interaction.deferReply({ ephemeral: true });
       const channels = await kernel.db.logChannel.findMany({ where: { guildId }, orderBy: { eventType: 'asc' } });

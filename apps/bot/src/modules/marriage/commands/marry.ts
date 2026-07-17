@@ -85,8 +85,7 @@ export default class MarryCommand implements ICommand {
 		.addSubcommand((s) =>
 			s
 				.setName('profile')
-				.setDescription('📋 Xem thông tin cuộc hôn nhân của bạn')
-				.addUserOption((o) => o.setName('user').setDescription('Thành viên khác')),
+				.setDescription('📋 Xem thông tin cuộc hôn nhân của bạn'),
 		)
 		.addSubcommand((s) => s.setName('divorce').setDescription('💔 Đơn phương chia tay'))
 		.addSubcommand((s) => s.setName('luv').setDescription('💖 Tương tác hằng ngày để farm điểm tình yêu và giữ streak'))
@@ -264,13 +263,10 @@ export default class MarryCommand implements ICommand {
 
 			// ─── 2. PROFILE SUBCOMMAND ───────────────────────────────────────────
 		} else if (sub === 'profile') {
-			const targetUser = interaction.options.getUser('user') ?? interaction.user;
-			const marriage = await getMarriage(kernel, guildId, targetUser.id);
+			const marriage = await getMarriage(kernel, guildId, userId);
 
 			if (!marriage) {
-				return void interaction.editReply(
-					targetUser.id === userId ? 'Ế có vợ đéo đâu mà xem?' : ` **${targetUser.username}** đéo có vợ.`,
-				);
+				return void interaction.editReply('Ế có vợ đéo đâu mà xem?');
 			}
 
 			const daysDiff = Math.floor((Date.now() - marriage.marriedAt.getTime()) / (24 * 3600 * 1000));
@@ -279,24 +275,39 @@ export default class MarryCommand implements ICommand {
 			const ringItem = await kernel.db.shopItem.findUnique({ where: { id: marriage.ringId } });
 			const ringEmoji = marriage.ringEmoji || ringItem?.emoji || '💍';
 
+			// Fetch member display names for title format
+			const member1 = await interaction.guild.members.fetch(marriage.user1Id).catch(() => null);
+			const member2 = await interaction.guild.members.fetch(marriage.user2Id).catch(() => null);
+			const name1 = member1?.displayName || 'Thành viên';
+			const name2 = member2?.displayName || 'Thành viên';
+
+			// Default thumbnail to partner avatar
+			const partnerId = userId === marriage.user1Id ? marriage.user2Id : marriage.user1Id;
+			const partnerMember = partnerId === marriage.user1Id ? member1 : member2;
+			const defaultThumbnail = partnerMember?.user.displayAvatarURL({ size: 256 }) || null;
+
+			// Format marriage date
+			const d = marriage.marriedAt;
+			const dateStr = `**${d.getDate()} tháng ${d.getMonth() + 1} năm ${d.getFullYear()}**`;
+
+			// Default customizable caption
+			const defaultCaption = "Chúc em đánh nền không mốc, tán má không bết, kẻ mắt 5s, gắn mi nhoay nhoáy. Đặc biệt quét nhà không ra tóc và không khóc vì đàn ông\n(⁄ ⁄•⁄ω⁄•⁄ ⁄)";
+			const captionText = marriage.caption || defaultCaption;
+			const blockquoteCaption = captionText.split('\n').map(line => `> ${line}`).join('\n');
+
+			const description =
+				`Ngày kết hôn: ${dateStr} ( **${daysDiff} ngày** )\n` +
+				`Nhẫn đính hôn: ${ringEmoji} **${marriage.ringName}**\n` +
+				`Điểm yêu thương: **${marriage.lovePoints} Điểm**\n\n` +
+				blockquoteCaption;
+
 			const embed = new EmbedBuilder()
 				.setColor(isNaN(embedColor) ? 0xff7bb5 : embedColor)
-				.setTitle(`💞 Hôn Nhân Hạnh Phúc 💞`)
-				.setDescription(marriage.caption || '🔒 Cuộc hôn nhân hạnh phúc ngọt ngào.')
-				.addFields(
-					{ name: '👩‍❤️‍👨 Bạn Đời', value: `<@${marriage.user1Id}> 💍 <@${marriage.user2Id}>`, inline: false },
-					{ name: '🔥 Streak Luv', value: `${marriage.streak} ngày`, inline: true },
-					{ name: '💖 Điểm Yêu Thương', value: `${marriage.lovePoints} điểm`, inline: true },
-					{
-						name: '📅 Kỷ Niệm',
-						value: `${marriage.marriedAt.toLocaleDateString('vi-VN')} (${daysDiff} ngày)`,
-						inline: true,
-					},
-					{ name: '💍 Nhẫn Cưới', value: `${ringEmoji} ${marriage.ringName}`, inline: true },
-				)
+				.setTitle(`${name1}, bạn đang hạnh phúc với ${name2}!`)
+				.setDescription(description)
 				.setTimestamp();
 
-			if (marriage.thumbnail) embed.setThumbnail(marriage.thumbnail);
+			if (marriage.thumbnail || defaultThumbnail) embed.setThumbnail(marriage.thumbnail || defaultThumbnail);
 			if (marriage.image) embed.setImage(marriage.image);
 
 			await interaction.editReply({ embeds: [embed] });
@@ -400,7 +411,7 @@ export default class MarryCommand implements ICommand {
 			const marriage = await getMarriage(kernel, guildId, userId);
 			if (!marriage) return void interaction.editReply('❌ Bạn cần kết hôn để thực hiện lệnh này.');
 
-			const text = interaction.options.getString('text', true);
+			const text = interaction.options.getString('text', true).replace(/\\n/g, '\n');
 			await kernel.db.marriage.update({
 				where: { id: marriage.id },
 				data: { caption: text },

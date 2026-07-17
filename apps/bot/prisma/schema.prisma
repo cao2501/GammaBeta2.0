@@ -46,6 +46,7 @@ model Guild {
   achievements    GuildAchievement[]
   levelRoles      LevelRole[]
   shopItems       ShopItem[]
+  staffs          Staff[]
 }
 
 model User {
@@ -747,6 +748,56 @@ model Marriage {
   @@unique([guildId, user1Id])
   @@unique([guildId, user2Id])
   @@index([guildId])
+}
+
+// ============================================================
+// MODULE: STAFF / EMPLOYEES
+// ============================================================
+model Staff {
+  id                      Int      @id @default(autoincrement())
+  guildId                 String
+  subKey                  String   // e.g. "k1", "k2"
+  type                    String   // "EMPLOYEE", "STAFF", "VIP"
+  name                    String
+  title                   String?  // e.g. "LYRA 12"
+  userId                  String?  // Linked Discord User ID
+  priceDay                Float    @default(0)
+  priceNight              Float    @default(0)
+  avatarUrl               String?  // Avatar image URL
+  borderColor             String   @default("#ffc0cb")
+  description             String?  // Description
+  fields                  String   @default("[]") // JSON: [{emoji: string, label?: string, value: string}]
+  images                  String   @default("[]") // JSON: [string]
+  salaryWallet            Float    @default(0)
+  allTimeHours            Float    @default(0)
+  allTimeBookingEarnings  Float    @default(0)
+  allTimeDonations        Float    @default(0)
+  currentHours            Float    @default(0)
+  currentBookingEarnings  Float    @default(0)
+  currentDonations        Float    @default(0)
+  currentDeductions       Float    @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  guild                   Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, subKey])
+  @@index([guildId])
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  guildId       String
+  customerId    String
+  staffKeys     String   // Comma-separated list of staff keys (e.g. "k1,k2")
+  hours         Int
+  extraPeople   Int      @default(0)
+  privateServer Boolean  @default(false)
+  rateType      String   // "DAY" or "NIGHT"
+  totalCost     Float
+  status        String   @default("COMPLETED") // "COMPLETED", "CANCELLED"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 
