@@ -4,6 +4,7 @@ Chúng tôi chỉ sử dụng bảng theo dõi lỗi (issue tracker) trên GitHu
 
 Để được hỗ trợ giải đáp thắc mắc, hướng dẫn sử dụng và cài đặt bot, vui lòng truy cập máy chủ Discord hỗ trợ chính thức của chúng tôi tại:
 
-👉 **[Kini Bot Support Server](https://discord.gg/your-server)**
+👉 **[Gamma Beta 2.0 Support Server](https://discord.gg/your-server)**
 
 Mọi issue được tạo không liên quan đến lỗi mã nguồn hoặc yêu cầu tính năng sẽ bị đóng mà không báo trước.
+

@@ -1,6 +1,6 @@
-# Hướng Dẫn Đóng Góp Phát Triển (Contributing to Kini Bot 2.0)
+# Hướng Dẫn Đóng Góp Phát Triển (Contributing to Gamma Beta 2.0)
 
-Cảm ơn bạn đã quan tâm đóng góp phát triển cho dự án **Kini Bot 2.0**! Để đảm bảo quá trình phát triển diễn ra suôn sẻ, vui lòng tham khảo các hướng dẫn thiết lập bên dưới.
+Cảm ơn bạn đã quan tâm đóng góp phát triển cho dự án **Gamma Beta 2.0**! Để đảm bảo quá trình phát triển diễn ra suôn sẻ, vui lòng tham khảo các hướng dẫn thiết lập bên dưới.
 
 ## Quy trình Đóng góp
 
@@ -50,3 +50,4 @@ Cảm ơn bạn đã quan tâm đóng góp phát triển cho dự án **Kini Bot
    npm run dev
    ```
    Sau khi bot online, bạn có thể truy cập Web Dashboard quản trị tại địa chỉ: `http://localhost:3000`.
+

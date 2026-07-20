@@ -1,6 +1,6 @@
-# 🤖 Kini Bot 2.0 — Enterprise Discord Bot & Web Dashboard
+# 🤖 Gamma Beta 2.0 — Enterprise Discord Bot & Web Dashboard
 
-Chào mừng bạn đến với **Kini Bot 2.0**, một hệ thống Discord Bot đa chức năng cấp doanh nghiệp (Enterprise-grade) tích hợp bảng điều khiển Web Control Panel thời gian thực, hệ thống trí tuệ nhân tạo Gemini AI tự động tìm kiếm mặt đất, và hơn 27 phân hệ (modules) hoạt động hoàn toàn độc lập, mạnh mẽ.
+Chào mừng bạn đến với **Gamma Beta 2.0**, một hệ thống Discord Bot đa chức năng cấp doanh nghiệp (Enterprise-grade) tích hợp bảng điều khiển Web Control Panel thời gian thực, hệ thống trí tuệ nhân tạo Gemini AI tự động tìm kiếm mặt đất, và hơn 27 phân hệ (modules) hoạt động hoàn toàn độc lập, mạnh mẽ.
 
 ---
 
@@ -119,3 +119,5 @@ docker-compose up -d --build
 ## 🤝 Bản Quyền & Phát Triển
 * Dự án được phát triển và vận hành bởi **cao2501** (GitHub: [cao2501](https://github.com/cao2501)).
 * Tích hợp các công nghệ đồ họa Canvas, cơ chế RAG Search cho AI, bảo mật Anti-Nuke thời gian thực.
+
+

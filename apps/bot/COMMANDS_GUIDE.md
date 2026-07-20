@@ -1,4 +1,4 @@
-﻿# 📖 Hướng Dẫn Lệnh & Chức Năng — Kini Bot 2.0
+# 📖 Hướng Dẫn Lệnh & Chức Năng — Gamma Beta 2.0
 
 > Tài liệu này được tổng hợp **trực tiếp từ source code** của toàn bộ **29 module** với đầy đủ tham số thực tế.
 > Cập nhật lần cuối: **2026-07-17**
@@ -532,3 +532,5 @@ Chỉ dành cho lập trình viên/owner bot. Được bảo vệ bằng kiểm 
 ---
 
 *Tài liệu này được tổng hợp trực tiếp từ source code — chính xác với từng tham số, quyền hạn và chức năng đang được triển khai. Cập nhật: 2026-07-17.*
+
+

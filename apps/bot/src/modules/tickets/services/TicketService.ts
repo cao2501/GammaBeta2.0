@@ -10,16 +10,16 @@ import { SpecialLogger } from '../../../core/logger/SpecialLogger';
 
 export class TicketService {
   /**
-   * Automatically create or get the hidden log channel 'kini-ticket-logs'
+   * Automatically create or get the hidden log channel 'gamma-beta-ticket-logs'
    */
   private static async getOrCreateLogChannel(guild: Guild, kernel: Kernel): Promise<TextChannel> {
     let logChannel = guild.channels.cache.find(
-      c => c.name === 'kini-ticket-logs' && c.type === ChannelType.GuildText
+      c => c.name === 'gamma-beta-ticket-logs' && c.type === ChannelType.GuildText
     ) as TextChannel | undefined;
 
     if (!logChannel) {
       logChannel = await guild.channels.create({
-        name: 'kini-ticket-logs',
+        name: 'gamma-beta-ticket-logs',
         type: ChannelType.GuildText,
         permissionOverwrites: [
           {
@@ -32,7 +32,7 @@ export class TicketService {
           }
         ]
       });
-      logger.info(`Automatically created hidden logs channel 'kini-ticket-logs' in guild ${guild.name}`);
+      logger.info(`Automatically created hidden logs channel 'gamma-beta-ticket-logs' in guild ${guild.name}`);
     }
 
     return logChannel;

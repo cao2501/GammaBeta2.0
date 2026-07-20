@@ -582,7 +582,7 @@ export class ExpressServer {
 							embed,
 							user.displayAvatarURL({ extension: 'png' }),
 							user.username,
-							'KINI BANKING',
+								`${(this.kernel.client.user?.username ?? 'Gamma Beta').toUpperCase()} BANKING`,
 						);
 						const file = new AttachmentBuilder(buffer, { name: 'deposit-success.png' });
 						await user.send({ content: `🔔 **Thông báo nạp tiền thành công!**`, files: [file] }).catch(() => {});
@@ -605,7 +605,7 @@ export class ExpressServer {
 								'Giao Dịch Nạp Tiền Thành Công',
 								`🎉 Chúc mừng **@${username}** đã nạp **${amount.toLocaleString('vi-VN')} ₫** thành công qua cổng **${gateway}**!\n\nMã giao dịch: \`${txId}\`\nSố dư VND của bạn đã được cập nhật.`,
 							);
-							const buffer = await UIBuilders.convertToCanvasCard(publicEmbed, avatar, username, 'KINI BANKING');
+							const buffer = await UIBuilders.convertToCanvasCard(publicEmbed, avatar, username, `${(this.kernel.client.user?.username ?? 'Gamma Beta').toUpperCase()} BANKING`);
 							const file = new AttachmentBuilder(buffer, { name: 'deposit-success.png' });
 							await (channel as any)
 								.send({ content: `🎉 **Nạp tiền thành công!** **<@${userId}>**`, files: [file] })
@@ -856,14 +856,14 @@ export class ExpressServer {
 
 			try {
 				let attachmentChannel = this.kernel.client.channels.cache.find(
-					(c) => 'name' in c && c.name === 'kini-attachments' && c.isTextBased(),
+					(c) => 'name' in c && c.name === 'gamma-beta-attachments' && c.isTextBased(),
 				) as any;
 
 				if (!attachmentChannel) {
 					const firstGuild = this.kernel.client.guilds.cache.first();
 					if (firstGuild) {
 						attachmentChannel = await firstGuild.channels.create({
-							name: 'kini-attachments',
+							name: 'gamma-beta-attachments',
 							type: ChannelType.GuildText,
 							permissionOverwrites: [
 								{
@@ -876,7 +876,7 @@ export class ExpressServer {
 				}
 
 				if (!attachmentChannel) {
-					return res.status(500).json({ error: 'Không thể tạo hoặc tìm channel kini-attachments.' });
+					return res.status(500).json({ error: 'Không thể tạo hoặc tìm channel gamma-beta-attachments.' });
 				}
 
 				const message = await attachmentChannel.send({
