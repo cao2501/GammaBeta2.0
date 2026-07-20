@@ -1,49 +1,52 @@
-# Contributing
+# Hướng Dẫn Đóng Góp Phát Triển (Contributing to Kini Bot 2.0)
 
-**The issue tracker is only for bug reports and enhancement suggestions. If you have a question, please ask it in the [Discord server](https://discord.gg/djs) instead of opening an issue – you will get redirected there anyway.**
+Cảm ơn bạn đã quan tâm đóng góp phát triển cho dự án **Kini Bot 2.0**! Để đảm bảo quá trình phát triển diễn ra suôn sẻ, vui lòng tham khảo các hướng dẫn thiết lập bên dưới.
 
-If you wish to contribute to the discord.js codebase or documentation, feel free to fork the repository and submit a
-pull request. We use ESLint to enforce a consistent coding style, so having that set up in your editor of choice
-is a great boon to your development process.
+## Quy trình Đóng góp
 
-## Setup
+1. Fork kho lưu trữ này về tài khoản GitHub của bạn.
+2. Clone dự án về máy cá nhân và chuyển sang nhánh `main`.
+3. Thiết lập môi trường chạy thử nghiệm (Xem phần bên dưới).
+4. Thực hiện các chỉnh sửa, nâng cấp tính năng hoặc sửa lỗi.
+5. Chạy thử nghiệm cục bộ để đảm bảo bot không phát sinh lỗi bất ngờ.
+6. Tạo Pull Request (PR) mô tả rõ ràng các thay đổi của bạn tới nhánh `main` của dự án gốc.
 
-To get ready to work on the codebase, please do the following:
+## Hướng dẫn Thiết lập Môi trường Phát triển (Local Setup)
 
-1. Fork & clone the repository, and make sure you're on the **main** branch
-2. Run `pnpm install --frozen-lockfile` ([install](https://pnpm.io/installation))
-3. Run `pnpm run build` to build local packages
-4. Code your heart out!
-5. Run `pnpm run test` to run ESLint and ensure any JSDoc changes are valid
-6. [Submit a pull request](https://github.com/discordjs/discord.js/compare) (Make sure you follow the [conventional commit format](https://github.com/discordjs/discord.js/blob/main/.github/COMMIT_CONVENTION.md))
+Để chạy thử nghiệm bot cục bộ trên máy tính của bạn, hãy thực hiện các bước sau:
 
-## Testing changes locally
+1. **Cài đặt các gói phụ thuộc**:
+   Truy cập vào thư mục bot `apps/bot` và chạy lệnh:
+   ```bash
+   npm install
+   ```
 
-If you want to test changes you've made locally, you can do so by using `pnpm link <package-you-want-to-link-to-your-current-package>`. This will create a symlink to your local copy of the discord.js libraries.
+2. **Cấu hình môi trường (`.env`)**:
+   Tạo tệp `.env` bên trong thư mục `apps/bot` và thiết lập các khóa cấu hình cần thiết bao gồm:
+   - `BOT_TOKEN` (Token của Discord Bot thử nghiệm của bạn)
+   - `CLIENT_ID` (ID của ứng dụng bot)
+   - `CLIENT_SECRET` (Mã bảo mật OAuth2)
+   - `DASHBOARD_PORT=3000` (Cổng chạy Dashboard thử nghiệm)
+   - `DASHBOARD_URL=http://localhost:3000`
+   - `DATABASE_URL="file:./data/bot.db"`
+   - `GEMINI_API_KEY` (API Key nếu bạn muốn thử nghiệm AI)
+   - `OWNER_IDS` (ID Discord của bạn)
 
-1. Create a new directory `mkdir discordjs-test` and move into it `cd discordjs-test`
-2. Initialize a new pnpm project `pnpm init`
-3. Now link the discord.js package from the directory you cloned earlier `pnpm link {PATH_TO_DISCORDJS_REPO}/packages/<package>`. (e.g. `pnpm link ~/discord.js/packages/rest`)
-4. Import the package in your source code and test them out!
+3. **Cài đặt cơ sở dữ liệu (SQLite & Prisma)**:
+   Đẩy cấu hình cơ sở dữ liệu SQLite và tự động tạo mã nguồn Prisma Client:
+   ```bash
+   npm run db:push
+   npm run db:generate
+   ```
 
-### Working with TypeScript packages
+4. **Đăng ký Slash Commands**:
+   Đăng ký các lệnh slash command của bot lên máy chủ Discord thử nghiệm của bạn:
+   ```bash
+   npm run deploy:commands
+   ```
 
-When testing local changes, you may notice you need to manually recompile TypeScript projects on every change in order to get the latest code changes to test locally.
-
-To avoid this you can use the `--watch` parameter in the package build script to automatically recompile the project when changes are detected.
-
-For example, to automatically recompile the `@discordjs/rest` project when changes are detected, run `pnpm turbo run build --filter='@discordjs/rest' -- --watch` in the root folder of where you cloned the discord.js repo.
-
-## Adding new packages
-
-If you'd like to create another package under the `@discordjs` organization run the following command:
-
-```sh
-pnpm run create-package <package-name> [package-description]
-```
-
-This will create new package directory under `packages/` with the required configuration files. You may begin
-to make changes within the `src/` directory. You may also need to:
-
-- Update workflows that utilize packages
-- Update the CODEOWNERS file
+5. **Khởi chạy bot ở chế độ phát triển (Development)**:
+   ```bash
+   npm run dev
+   ```
+   Sau khi bot online, bạn có thể truy cập Web Dashboard quản trị tại địa chỉ: `http://localhost:3000`.
