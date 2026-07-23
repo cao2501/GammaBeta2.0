@@ -45,7 +45,7 @@
 
       <nav class="sidebar-nav">
         <button class="nav-item active" data-tab="config">⚙️ Cấu Hình Modules</button>
-        <button class="nav-item" data-tab="prefix">🔑 Prefix Lệnh</button>
+        <button class="nav-item" data-tab="prefix">🔑 Prefix & Alias Lệnh</button>
         <button class="nav-item" data-tab="permissions">🛡️ Phân Quyền Lệnh</button>
         <button class="nav-item" data-tab="logs">📜 System Logs (Live)</button>
         <button class="nav-item" id="btn-maintenance">🔧 Chế Độ Bảo Trì</button>
@@ -160,33 +160,88 @@
         </div>
       </section>
 
-      <!-- TAB 2: PREFIX SETTINGS & DISCORD PREVIEW -->
+      <!-- TAB 2: PREFIX & ALIAS MANAGER -->
       <section id="tab-prefix" class="tab-content">
         <div class="panel-header">
-          <h2>🔑 Cấu Hình Prefix Lệnh</h2>
-          <p>Thiết lập tiền tố gọi lệnh tùy chỉnh cho máy chủ hiện tại.</p>
+          <h2>🔑 Cấu Hình Prefix & Quản Lý Alias Lệnh</h2>
+          <p>Thiết lập tiền tố gọi lệnh tùy chỉnh & định nghĩa các lệnh viết tắt (Alias) cho máy chủ.</p>
         </div>
 
-        <div class="glass" style="padding: 28px; display: flex; flex-direction: column; gap: 24px; max-width: 600px;">
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <label for="prefix-input" style="font-weight:600; font-size:0.9rem;">Prefix Lệnh Mới:</label>
-            <input type="text" id="prefix-input" class="glass-input" placeholder="Ví dụ: !, ?, kn, ..." style="max-width: 240px;" />
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px;">
+          <!-- Left: Global Prefix Config Card -->
+          <div class="glass" style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+            <h3>🔑 Tiền Tố Gọi Lệnh (Global Prefix)</h3>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <label for="global-prefix-input" style="font-weight:600; font-size:0.88rem;">Prefix Lệnh Mới:</label>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span class="badge badge-primary" id="global-prefix-badge">!</span>
+                <input type="text" id="global-prefix-input" class="glass-input" placeholder="Ví dụ: !, ?, kn, ..." style="max-width: 180px;" />
+                <button id="btn-save-global-prefix" class="btn btn-primary" disabled>💾 Lưu Prefix</button>
+              </div>
+              <p style="font-size:0.82rem; color:var(--text-muted); margin-top:4px;">💡 Prefix hiện tại: <code id="current-global-prefix" style="color:var(--cyan);">Chưa chọn server</code></p>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-subtle);" />
+
+            <h4 style="font-size:0.92rem;">📱 Xem trước hiển thị trên Discord:</h4>
+            <div class="discord-preview-card">
+              <img src="https://cdn.discordapp.com/embed/avatars/0.png" class="discord-avatar" alt="Bot Avatar" />
+              <div class="discord-content">
+                <div class="discord-author">
+                  Gamma Beta Bot <span class="discord-bot-tag">BOT</span>
+                </div>
+                <div class="discord-embed">
+                  <span class="discord-embed-title">Cấu hình Prefix thành công!</span>
+                  <span class="discord-embed-desc">Prefix hiện tại của máy chủ là: <code id="preview-prefix-tag" style="background:#1e1f22; padding:2px 6px; border-radius:4px; color:#a5b4fc;">kn</code>. Sử dụng lệnh <code style="background:#1e1f22; padding:2px 6px; border-radius:4px; color:#a5b4fc;"><span id="preview-cmd-example">kn</span>help</code> để xem danh sách lệnh.</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <button id="btn-save-prefix" class="btn btn-primary" style="width: fit-content;">💾 Lưu Prefix</button>
+          <!-- Right: Alias Manager Card -->
+          <div class="glass" style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+            <div>
+              <h3>⚡ Quản Lý Alias Lệnh Viết Tắt</h3>
+              <p style="font-size:0.85rem; color:var(--text-muted); margin-top:2px;">Tạo tên tắt cho lệnh — Người dùng gõ <code>!{alias}</code> thay vì gọi lệnh Slash dài.</p>
+            </div>
 
-          <hr style="border: 0; border-top: 1px solid var(--border-subtle);" />
+            <!-- Form Thêm Alias -->
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; display:flex; flex-direction:column; gap:12px;">
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; align-items:end;">
+                <div>
+                  <label style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Alias (tên tắt)</label>
+                  <div style="display:flex; align-items:center; gap:4px; margin-top:4px;">
+                    <span id="alias-prefix-preview" class="badge badge-cyan">!</span>
+                    <input id="new-alias-text" class="glass-input" type="text" placeholder="daily, shop, bal..." maxlength="32" />
+                  </div>
+                </div>
 
-          <h4 style="font-size:0.95rem;">📱 Xem trước hiển thị trên Discord:</h4>
-          <div class="discord-preview-card">
-            <img src="https://cdn.discordapp.com/embed/avatars/0.png" class="discord-avatar" alt="Bot Avatar" />
-            <div class="discord-content">
-              <div class="discord-author">
-                Gamma Beta Bot <span class="discord-bot-tag">BOT</span>
+                <div>
+                  <label style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Lệnh slash</label>
+                  <select id="new-alias-command" class="glass-select" style="margin-top:4px;">
+                    <option value="">-- Chọn lệnh --</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style="font-size:0.75rem; text-transform:uppercase; color:var(--text-muted); font-weight:600;">Subcommand</label>
+                  <select id="new-alias-subcommand" class="glass-select" disabled style="margin-top:4px;">
+                    <option value="">-- Không có --</option>
+                  </select>
+                </div>
               </div>
-              <div class="discord-embed">
-                <span class="discord-embed-title">Cấu hình Prefix thành công!</span>
-                <span class="discord-embed-desc">Prefix hiện tại của máy chủ là: <code id="preview-prefix-tag" style="background:#1e1f22; padding:2px 6px; border-radius:4px; color:#a5b4fc;">kn</code>. Sử dụng lệnh <code style="background:#1e1f22; padding:2px 6px; border-radius:4px; color:#a5b4fc;"><span id="preview-cmd-example">kn</span>help</code> để xem tất cả tính năng.</span>
+
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
+                <span id="alias-form-status" class="status-msg"></span>
+                <button id="btn-add-alias" class="btn btn-primary" disabled>➕ Thêm Alias</button>
+              </div>
+            </div>
+
+            <!-- Danh Sách Alias Bảng -->
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <h4 style="font-size:0.9rem;">Danh Sách Alias Đã Cấu Hình:</h4>
+              <div id="alias-list" class="alias-list-container" style="max-height: 240px; overflow-y: auto; display:flex; flex-direction:column; gap:8px;">
+                <p class="placeholder-text" style="color:var(--text-muted);">Chưa chọn máy chủ hoặc chưa có alias nào.</p>
               </div>
             </div>
           </div>
@@ -196,12 +251,66 @@
       <!-- TAB 3: COMMAND PERMISSIONS -->
       <section id="tab-permissions" class="tab-content">
         <div class="panel-header">
-          <h2>🛡️ Phân Quyền Sử Dụng Lệnh</h2>
-          <p>Cấu hình Vai Trò (Roles) & Kênh (Channels) được phép hoặc bị cấm gọi các nhóm lệnh.</p>
+          <h2>🛡️ Quản Lý Quyền Hạn Lệnh Slash</h2>
+          <p>Cấu hình vai trò (role) được phép hoặc bị cấm sử dụng các lệnh slash (/) của bot.</p>
         </div>
 
-        <div class="glass" style="padding: 28px;">
-          <p style="color: var(--text-muted);">Tính năng quản lý chi tiết phân quyền lệnh theo vai trò đang được áp dụng theo quy chuẩn Discord Application Commands Permissions.</p>
+        <div class="glass" style="padding: 28px; display: flex; flex-direction: column; gap: 24px;">
+          <!-- Selectors Row -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+            <div>
+              <label style="font-weight:600; font-size:0.85rem; color:var(--text-muted); display:block; margin-bottom:6px;">1. Chọn Module cần cấu hình:</label>
+              <select id="perm-module-select" class="glass-select">
+                <option value="">-- Chọn Module --</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-weight:600; font-size:0.85rem; color:var(--text-muted); display:block; margin-bottom:6px;">2. Chọn Lệnh con (Tùy chọn):</label>
+              <select id="perm-command-select" class="glass-select" disabled>
+                <option value="">-- Tất cả lệnh trong Module --</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Permissions Role Checkboxes Matrix Area -->
+          <div id="permission-settings-area" style="display: none; background: rgba(0,0,0,0.25); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 24px;">
+            <h3 style="margin-bottom: 16px; font-size: 1.15rem;">
+              Cấu hình quyền cho: <span id="perm-editing-command-name" class="highlight-text">Module</span>
+            </h3>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+              <!-- Allowed Roles Column -->
+              <div class="glass-item" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                <h4 style="color: #34d399; display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                  🟢 Vai Trò Được Phép (Allowed Roles)
+                </h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">
+                  Chỉ các vai trò được tick mới dùng được lệnh này. Nếu không chọn vai trò nào, lệnh sẽ mở công khai (trừ vai trò bị Cấm).
+                </p>
+                <div id="allowed-roles-list" class="roles-checkbox-list" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 6px;">
+                  <!-- Checkboxes loaded dynamically -->
+                </div>
+              </div>
+
+              <!-- Denied Roles Column -->
+              <div class="glass-item" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+                <h4 style="color: #f87171; display: flex; align-items: center; gap: 8px; font-size: 0.95rem;">
+                  🔴 Vai Trò Bị Cấm (Denied Roles)
+                </h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">
+                  Các vai trò được tick ở đây sẽ hoàn toàn bị chặn và không thể thực thi lệnh này.
+                </p>
+                <div id="denied-roles-list" class="roles-checkbox-list" style="max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 6px;">
+                  <!-- Checkboxes loaded dynamically -->
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 20px; display: flex; align-items: center; justify-content: space-between;">
+              <span id="permissions-status-msg" class="status-msg"></span>
+              <button id="btn-save-permissions" class="btn btn-primary">💾 Lưu Cấu Hình Quyền</button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -230,11 +339,13 @@
           </div>
 
           <div id="log-terminal" class="log-terminal">
-            <div class="log-line">
-              <span class="log-time">[System]</span>
-              <span class="log-module">dashboard</span>
-              <span class="log-level log-level-info">INFO</span>
-              <span class="log-msg">WebSocket Live Log stream connected successfully.</span>
+            <div id="terminal-output">
+              <div class="log-line">
+                <span class="log-time">[System]</span>
+                <span class="log-module">dashboard</span>
+                <span class="log-level log-level-info">INFO</span>
+                <span class="log-msg">WebSocket Live Log stream connected successfully.</span>
+              </div>
             </div>
           </div>
         </div>
